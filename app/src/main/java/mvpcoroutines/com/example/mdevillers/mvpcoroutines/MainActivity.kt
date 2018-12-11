@@ -160,7 +160,8 @@ class RetainedStateModel<T: Parcelable>(
     }
 
     fun clearResult() {
-        // deferredViewModel.deferred?.cancel()
+        deferredViewModel.deferred?.cancel()
+        deferredViewModel.deferred = null
         success = null
         error = null
     }
@@ -202,6 +203,7 @@ operator fun <T: Parcelable> ViewModelProvider.get(key: String): DeferredViewMod
 
 interface Contract {
     interface ViewProxy {
+        fun showEmpty()
         fun showProgress()
         fun showArticle(article: Article)
         fun showError(message: String)
@@ -209,6 +211,7 @@ interface Contract {
 
     interface Presenter {
         fun onClickDownloadArticle()
+        fun onClickClear()
     }
 }
 
@@ -234,6 +237,11 @@ class Presenter(
     override fun onClickDownloadArticle() {
         val deferredArticle = articleState.asyncCatching { articleRepository.getArticle() }
         showArticleProgress(deferredArticle)
+    }
+
+    override fun onClickClear() {
+        articleState.clearResult()
+        viewProxy.showEmpty()
     }
 
     private fun showArticleProgress(deferredArticle: Deferred<Result<Article>>) {
@@ -291,6 +299,8 @@ class ViewProxy(private val view: View): Contract.ViewProxy {
 
     private val button: View
         get() = view.findViewById(R.id.button)
+    private val clearButton: View
+        get() = view.findViewById(R.id.button_clear)
     private val progress: View
         get() = view.findViewById(R.id.progress)
     private val title: TextView
@@ -304,6 +314,15 @@ class ViewProxy(private val view: View): Contract.ViewProxy {
 
     init {
         button.setOnClickListener { presenter?.onClickDownloadArticle() }
+        clearButton.setOnClickListener { presenter?.onClickClear() }
+    }
+
+    override fun showEmpty() {
+        progress.visibility = View.GONE
+        title.visibility = View.GONE
+        description.visibility = View.GONE
+        extract.visibility = View.GONE
+        error.visibility = View.GONE
     }
 
     override fun showProgress() {
