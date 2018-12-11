@@ -26,13 +26,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val viewModelProvider = ViewModelProviders.of(this)
         val viewProxy = ViewProxy(window.decorView)
         presenter = Presenter(
             viewProxy,
             CoroutineScope(Dispatchers.Main + job),
-            viewModelProvider,
-            savedInstanceState?.getBundle(STATE_PRESENTER) ?: Bundle(),
+            RetainedStateRepository(
+                savedInstanceState?.getBundle(STATE_PRESENTER) ?: Bundle(),
+                ViewModelProviders.of(this)
+            ),
             ArticleRepository(Singleton.callFactory)
         ).also {
             viewProxy.presenter = it
@@ -41,7 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBundle(STATE_PRESENTER, presenter.savedInstanceState)
+        outState.putBundle(STATE_PRESENTER, presenter.retainedStateRepository.savedInstanceState())
     }
 
     override fun onDestroy() {
@@ -55,22 +56,49 @@ class MainActivity : AppCompatActivity() {
 }
 
 
-class DeferredViewModel<T>: ViewModel() {
+/**
+ * Aggregates retained states.
+ */
+class RetainedStateRepository(
+    private val bundle: Bundle,
+    private val viewModelProvider: ViewModelProvider
+) {
+    private val retainedStates = mutableMapOf<String, RetainedStateModel<*>>()
 
-    private val job = Job()
-    private val scope = CoroutineScope(Dispatchers.Default + job)
+    @Suppress("UNCHECKED_CAST")
+    operator fun <T: Parcelable> get(key: String): RetainedStateModel<T> =
+        retainedStates.getOrPut(key) {
+            RetainedStateModel<T>(
+                bundle.getBundle(key) ?: Bundle(),
+                viewModelProvider[key]
+            )
+        } as RetainedStateModel<T>
 
-    var deferred: Deferred<Result<T>>? = null
+    fun savedInstanceState(): Bundle =
+        bundle.apply {
+            retainedStates.forEach {
+                putBundle(it.key, it.value.savedInstanceState())
+            }
+        }
+}
 
-    /**
-     * Warning: `block` should *NOT* capture any context-scoped instances.
-     */
-    fun asyncCatching(
-        context: CoroutineContext = EmptyCoroutineContext,
-        start: CoroutineStart = CoroutineStart.DEFAULT,
-        block: suspend CoroutineScope.() -> T
-    ): Deferred<Result<T>> =
-        scope.async(context, start) { runCatching { block() } }.also { deferred = it }
+/**
+ * Handles retaining a state of a computed result, combining view models and saved instance states.
+ */
+class RetainedStateModel<T: Parcelable>(
+    private val bundle: Bundle,
+    private val deferredViewModel: DeferredViewModel<T>
+) {
+    val deferred: Deferred<Result<T>>?
+        get() = deferredViewModel.deferred
+
+    var success: T?
+        get() = bundle.getParcelable(STATE_SUCCESS)
+        private set(value) { bundle.putParcelable(STATE_SUCCESS, value) }
+
+    var error: Throwable?
+        get() = bundle.getSerializable(STATE_ERROR) as Throwable?
+        private set(value) { bundle.putSerializable(STATE_ERROR, value) }
 
     /**
      * Fold the existing state of the value.
@@ -82,19 +110,23 @@ class DeferredViewModel<T>: ViewModel() {
      * @param onProgress
      *  Called if the result is still being fetched, with the deferred result as parameter.
      * @param onReady
-     *  Called if no result is being fetched.
-     *  Only block with a default value because "ready" is generally the default state for the view, so there's nothing
-     *  to do.
+     *  Called if no result computing has been started.
      */
     inline fun getResult(
-        onComplete: (T) -> Unit,
-        onError: (Throwable) -> Unit,
-        onProgress: (Deferred<Result<T>>) -> Unit,
+        onComplete: (T) -> Unit  = {},
+        onError: (Throwable) -> Unit = {},
+        onProgress: (Deferred<Result<T>>) -> Unit = {},
         onReady: () -> Unit = {}
     ) {
         val deferred = deferred
         if (deferred == null) {
-            onReady()
+            val success = this.success
+            val error = this.error
+            when {
+                success != null -> onComplete(success)
+                error != null -> onError(error)
+                else -> onReady()
+            }
         } else {
             if (deferred.isCompleted) {
                 val completed = deferred.getCompleted()
@@ -108,6 +140,55 @@ class DeferredViewModel<T>: ViewModel() {
         }
     }
 
+    /**
+     * Warning: `block` should *NOT* capture any context-scoped instances.
+     */
+    fun asyncCatching(
+        context: CoroutineContext = EmptyCoroutineContext,
+        start: CoroutineStart = CoroutineStart.DEFAULT,
+        block: suspend CoroutineScope.() -> T
+    ): Deferred<Result<T>> {
+        clearResult()
+        return deferredViewModel.async(
+            context,
+            start
+        ) {
+            runCatching { block() }
+        }.also {
+            deferredViewModel.deferred = it
+        }
+    }
+
+    fun clearResult() {
+        // deferredViewModel.deferred?.cancel()
+        success = null
+        error = null
+    }
+
+    fun savedInstanceState(): Bundle {
+        getResult(
+            onComplete = { success = it },
+            onError = { error = it }
+        )
+        return bundle
+    }
+
+    companion object {
+        const val STATE_SUCCESS = "SUCCESS"
+        const val STATE_ERROR = "ERROR"
+    }
+}
+
+
+class DeferredViewModel<T: Parcelable>: ViewModel(), CoroutineScope {
+
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.Default + job
+
+    var deferred: Deferred<Result<T>>? = null
+
+    private val job = Job()
+
     override fun onCleared() {
         super.onCleared()
         job.cancel()
@@ -115,7 +196,7 @@ class DeferredViewModel<T>: ViewModel() {
 }
 
 @Suppress("UNCHECKED_CAST")
-operator fun <T> ViewModelProvider.get(key: String): DeferredViewModel<T> {
+operator fun <T: Parcelable> ViewModelProvider.get(key: String): DeferredViewModel<T> {
     return get(key, DeferredViewModel::class.java) as DeferredViewModel<T>
 }
 
@@ -134,33 +215,24 @@ interface Contract {
 class Presenter(
     private val viewProxy: Contract.ViewProxy,
     private val coroutineScope: CoroutineScope,
-    private val modelProviders: ViewModelProvider,
-    val savedInstanceState: Bundle,
+    val retainedStateRepository: RetainedStateRepository,
     private val articleRepository: ArticleRepository
 ): Contract.Presenter, CoroutineScope by coroutineScope {
 
-    private var article: Article?
-        get() = savedInstanceState.getParcelable(STATE_ARTICLE)
-        set(value) { savedInstanceState.putParcelable(STATE_ARTICLE, value) }
-    private var error: Throwable?
-        get() = savedInstanceState.getSerializable(STATE_ERROR) as Throwable?
-        set(value) { savedInstanceState.putSerializable(STATE_ERROR, value) }
-    private val articleDownloadModel: DeferredViewModel<Article>
-        get() = modelProviders[MODEL_ARTICLE]
+    private val articleState: RetainedStateModel<Article>
+        get() = retainedStateRepository[STATE_ARTICLE]
 
     init {
-        articleDownloadModel.getResult(
+        articleState.getResult(
             onComplete = ::showArticle,
             onError = ::showError,
-            onProgress = ::showArticleProgress,
-            onReady = {
-                article?.let(::showArticle)
-            }
+            onProgress = ::showArticleProgress
+            // onReady is the default view state, so there's nothing to do
         )
     }
 
     override fun onClickDownloadArticle() {
-        val deferredArticle = articleDownloadModel.asyncCatching { articleRepository.getArticle() }
+        val deferredArticle = articleState.asyncCatching { articleRepository.getArticle() }
         showArticleProgress(deferredArticle)
     }
 
@@ -175,23 +247,15 @@ class Presenter(
     }
 
     private fun showArticle(article: Article) {
-        articleDownloadModel.deferred = null
-        this.article = article
-        this.error = null
         viewProxy.showArticle(article)
     }
 
     private fun showError(error: Throwable) {
-        articleDownloadModel.deferred = null
-        this.article = null
-        this.error = error
-        viewProxy.showError(error.message ?: "")
+        viewProxy.showError(error.message ?: error.javaClass.simpleName)
     }
 
     companion object {
         const val STATE_ARTICLE = "ARTICLE"
-        const val STATE_ERROR = "ERROR"
-        const val MODEL_ARTICLE = "ARTICLE"
     }
 }
 
