@@ -1,10 +1,13 @@
 package mvpcoroutines.com.example.mdevillers.mvpcoroutines
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -34,7 +37,8 @@ class MainActivity : AppCompatActivity() {
                 savedInstanceState?.getBundle(STATE_PRESENTER) ?: Bundle(),
                 ViewModelProviders.of(this)
             ),
-            ArticleRepository(Singleton.callFactory)
+            ArticleRepository(Singleton.callFactory),
+            ArticleThumbnailRepository(Singleton.callFactory)
         ).also {
             viewProxy.presenter = it
         }
@@ -111,6 +115,8 @@ class RetainedStateModel<T: Parcelable>(
      *  Called if the result is still being fetched, with the deferred result as parameter.
      * @param onReady
      *  Called if no result computing has been started.
+     *
+     *  Note that this is often the default state of the view, in which case there's nothing to do.
      */
     inline fun getResult(
         onComplete: (T) -> Unit  = {},
@@ -207,6 +213,9 @@ interface Contract {
         fun showProgress()
         fun showArticle(article: Article)
         fun showError(message: String)
+        fun showThumbnailProgress()
+        fun showThumbnail(bitmap: Bitmap)
+        fun showThumbnailError(message: String)
     }
 
     interface Presenter {
@@ -219,37 +228,69 @@ class Presenter(
     private val viewProxy: Contract.ViewProxy,
     private val coroutineScope: CoroutineScope,
     val retainedStateRepository: RetainedStateRepository,
-    private val articleRepository: ArticleRepository
+    private val articleRepository: ArticleRepository,
+    private val thumbnailRepository: ArticleThumbnailRepository
 ): Contract.Presenter, CoroutineScope by coroutineScope {
 
     private val articleState: RetainedStateModel<Article>
         get() = retainedStateRepository[STATE_ARTICLE]
+    private val thumbnailState: RetainedStateModel<Bitmap>
+        get() = retainedStateRepository[STATE_THUMBNAIL]
 
     init {
         articleState.getResult(
+            // TODO: Might need to restart thumbnail if activity was killed during loading
+            // In general, the state should probably include information on how to restart the process
             onComplete = ::showArticle,
             onError = ::showError,
             onProgress = ::showArticleProgress
-            // onReady is the default view state, so there's nothing to do
+        )
+        thumbnailState.getResult(
+            onComplete = ::showThumbnail,
+            onError = ::showThumbnailError,
+            onProgress = ::showThumbnailDownloadProgress
         )
     }
 
     override fun onClickDownloadArticle() {
-        val deferredArticle = articleState.asyncCatching { articleRepository.getArticle() }
+        thumbnailState.clearResult()
+        val deferredArticle = articleState.asyncCatching {
+            articleRepository.getArticle()
+        }
         showArticleProgress(deferredArticle)
     }
 
     override fun onClickClear() {
         articleState.clearResult()
+        thumbnailState.clearResult()
         viewProxy.showEmpty()
     }
 
     private fun showArticleProgress(deferredArticle: Deferred<Result<Article>>) {
         viewProxy.showProgress()
         launch {
-            deferredArticle.await().fold(
-                onSuccess = ::showArticle,
-                onFailure = ::showError
+            deferredArticle.await()
+                .onSuccess { downloadThumbnail(it) }
+                .fold(
+                    onSuccess = ::showArticle,
+                    onFailure = ::showError
+                )
+        }
+    }
+
+    private fun downloadThumbnail(article: Article) {
+        val deferredThumbnail = thumbnailState.asyncCatching {
+            thumbnailRepository.getThumbnail(article.thumbnailUrl)
+        }
+        showThumbnailDownloadProgress(deferredThumbnail)
+    }
+
+    private fun showThumbnailDownloadProgress(deferredThumbnail: Deferred<Result<Bitmap>>) {
+        launch {
+            viewProxy.showThumbnailProgress()
+            deferredThumbnail.await().fold(
+                onSuccess = ::showThumbnail,
+                onFailure = ::showThumbnailError
             )
         }
     }
@@ -262,18 +303,29 @@ class Presenter(
         viewProxy.showError(error.message ?: error.javaClass.simpleName)
     }
 
+    private fun showThumbnail(bitmap: Bitmap) {
+        viewProxy.showThumbnail(bitmap)
+    }
+
+    private fun showThumbnailError(error: Throwable) {
+        viewProxy.showThumbnailError(error.message ?: error.javaClass.simpleName)
+    }
+
     companion object {
         const val STATE_ARTICLE = "ARTICLE"
+        const val STATE_THUMBNAIL = "THUMBNAIL"
     }
 }
 
 class Article(
     val title: String,
     val description: String,
-    val extract: String
+    val extract: String,
+    val thumbnailUrl: String
 ): Parcelable {
 
     constructor(parcel: Parcel) : this(
+        parcel.readString()!!,
         parcel.readString()!!,
         parcel.readString()!!,
         parcel.readString()!!
@@ -283,6 +335,7 @@ class Article(
         parcel.writeString(title)
         parcel.writeString(description)
         parcel.writeString(extract)
+        parcel.writeString(thumbnailUrl)
     }
 
     override fun describeContents(): Int = 0
@@ -307,6 +360,12 @@ class ViewProxy(private val view: View): Contract.ViewProxy {
         get() = view.findViewById(R.id.title)
     private val description: TextView
         get() = view.findViewById(R.id.description)
+    private val thumbnail: ImageView
+        get() = view.findViewById(R.id.thumbnail)
+    private val thumbnailProgress: View
+        get() = view.findViewById(R.id.thumbnail_progress)
+    private val thumbnailError: TextView
+        get() = view.findViewById(R.id.thumbnail_error)
     private val extract: TextView
         get() = view.findViewById(R.id.extract)
     private val error: TextView
@@ -318,39 +377,71 @@ class ViewProxy(private val view: View): Contract.ViewProxy {
     }
 
     override fun showEmpty() {
-        progress.visibility = View.GONE
-        title.visibility = View.GONE
-        description.visibility = View.GONE
-        extract.visibility = View.GONE
-        error.visibility = View.GONE
+        progress.visibility = View.INVISIBLE
+        title.visibility = View.INVISIBLE
+        description.visibility = View.INVISIBLE
+        extract.visibility = View.INVISIBLE
+        error.visibility = View.INVISIBLE
+        thumbnail.visibility = View.INVISIBLE
+        thumbnailProgress.visibility = View.INVISIBLE
+        thumbnailError.visibility = View.INVISIBLE
     }
 
     override fun showProgress() {
         progress.visibility = View.VISIBLE
-        title.visibility = View.GONE
-        description.visibility = View.GONE
-        extract.visibility = View.GONE
-        error.visibility = View.GONE
+        title.visibility = View.INVISIBLE
+        description.visibility = View.INVISIBLE
+        extract.visibility = View.INVISIBLE
+        error.visibility = View.INVISIBLE
+        thumbnail.visibility = View.INVISIBLE
+        thumbnailProgress.visibility = View.INVISIBLE
+        thumbnailError.visibility = View.INVISIBLE
     }
 
     override fun showArticle(article: Article) {
-        progress.visibility = View.GONE
+        progress.visibility = View.INVISIBLE
         title.text = article.title
         title.visibility = View.VISIBLE
         description.text = article.description
         description.visibility = View.VISIBLE
         extract.text = article.extract
         extract.visibility = View.VISIBLE
-        error.visibility = View.GONE
+        error.visibility = View.INVISIBLE
+        thumbnail.visibility = View.INVISIBLE
+        thumbnailProgress.visibility = View.INVISIBLE
+        thumbnailError.visibility = View.INVISIBLE
     }
 
     override fun showError(message: String) {
-        progress.visibility = View.GONE
-        title.visibility = View.GONE
-        description.visibility = View.GONE
-        extract.visibility = View.GONE
+        progress.visibility = View.INVISIBLE
+        title.visibility = View.INVISIBLE
+        description.visibility = View.INVISIBLE
+        extract.visibility = View.INVISIBLE
         error.text = message
         error.visibility = View.VISIBLE
+        thumbnail.visibility = View.INVISIBLE
+        thumbnailProgress.visibility = View.INVISIBLE
+        thumbnailError.visibility = View.INVISIBLE
+    }
+
+    override fun showThumbnailProgress() {
+        thumbnailProgress.visibility = View.VISIBLE
+        thumbnail.visibility = View.INVISIBLE
+        thumbnailError.visibility = View.INVISIBLE
+    }
+
+    override fun showThumbnail(bitmap: Bitmap) {
+        thumbnailProgress.visibility = View.INVISIBLE
+        thumbnailError.visibility = View.INVISIBLE
+        thumbnail.setImageBitmap(bitmap)
+        thumbnail.visibility = View.VISIBLE
+    }
+
+    override fun showThumbnailError(message: String) {
+        thumbnailProgress.visibility = View.INVISIBLE
+        thumbnail.visibility = View.INVISIBLE
+        thumbnailError.text = message
+        thumbnailError.visibility = View.VISIBLE
     }
 }
 
@@ -368,8 +459,24 @@ class ArticleRepository(private val callFactory: Call.Factory) {
             Article(
                 getString("title").apply { check(isNotEmpty()) { "Empty title" } },
                 getString("description"),
-                getString("extract")
+                getString("extract"),
+                getJSONObject("thumbnail").getString("source")
             )
+        }
+    }
+}
+
+class ArticleThumbnailRepository(
+    private val callFactory: Call.Factory
+) {
+    fun getThumbnail(url: String): Bitmap {
+        val request = Request.Builder()
+            .url(url)
+            .build()
+        val call = callFactory.newCall(request)
+        val response = call.execute()
+        return response.body()!!.byteStream().use {
+            BitmapFactory.decodeStream(it)
         }
     }
 }
