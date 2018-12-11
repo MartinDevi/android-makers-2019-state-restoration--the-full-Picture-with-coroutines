@@ -40,8 +40,6 @@ class RetainedStateModel<T: Parcelable>(
      *  Called if the task failed to obtain the result, with the error thrown as parameter.
      * @param onProgress
      *  Called if the result is still being fetched, with the deferred result as parameter.
-     * @param onReady
-     *  Called if no result computing has been started.
      *
      *  Note that this is often the default state of the view, in which case there's nothing to do.
      */
@@ -53,6 +51,9 @@ class RetainedStateModel<T: Parcelable>(
     ) {
         val deferred = deferred
         if (deferred == null) {
+            /*
+             * See if values can be fetched from previously saved state.
+             */
             val success = this.success
             val error = this.error
             val arguments = this.arguments
@@ -60,6 +61,7 @@ class RetainedStateModel<T: Parcelable>(
                 success != null -> onComplete(success)
                 error != null -> onError(error)
                 arguments != null -> onInterrupted(arguments)
+                // Else callback for "ready"/"idle" state?
             }
         } else {
             if (deferred.isCompleted) {
