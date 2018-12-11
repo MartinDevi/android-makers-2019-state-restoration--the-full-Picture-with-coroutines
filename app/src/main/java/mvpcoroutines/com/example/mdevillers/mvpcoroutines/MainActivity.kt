@@ -104,6 +104,10 @@ class RetainedStateModel<T: Parcelable>(
         get() = bundle.getSerializable(STATE_ERROR) as Throwable?
         private set(value) { bundle.putSerializable(STATE_ERROR, value) }
 
+    var arguments: Bundle?
+        get() = bundle.getBundle(STATE_ARGUMENTS)
+        private set(value) { bundle.putBundle(STATE_ARGUMENTS, value) }
+
     /**
      * Fold the existing state of the value.
      *
@@ -122,16 +126,17 @@ class RetainedStateModel<T: Parcelable>(
         onComplete: (T) -> Unit  = {},
         onError: (Throwable) -> Unit = {},
         onProgress: (Deferred<Result<T>>) -> Unit = {},
-        onReady: () -> Unit = {}
+        onInterrupted: (Bundle) -> Unit = {}
     ) {
         val deferred = deferred
         if (deferred == null) {
             val success = this.success
             val error = this.error
+            val arguments = this.arguments
             when {
                 success != null -> onComplete(success)
                 error != null -> onError(error)
-                else -> onReady()
+                arguments != null -> onInterrupted(arguments)
             }
         } else {
             if (deferred.isCompleted) {
@@ -147,14 +152,23 @@ class RetainedStateModel<T: Parcelable>(
     }
 
     /**
-     * Warning: `block` should *NOT* capture any context-scoped instances.
+     * Start an async process.
+     *
+     * @param arguments
+     *  An optional description of the process arguments which are used by the suspending block. If this is not-null,
+     *  then it can be used later to restart the process.
+     * @param block
+     *  The suspending block which computes the result.
+     *  This block should make sure to *not* capture any context-scoped instances, since it will be retained across
+     *  configuration changes.
      */
     fun asyncCatching(
         context: CoroutineContext = EmptyCoroutineContext,
         start: CoroutineStart = CoroutineStart.DEFAULT,
+        arguments: Bundle? = null,
         block: suspend CoroutineScope.() -> T
     ): Deferred<Result<T>> {
-        clearResult()
+        clearResult(arguments)
         return deferredViewModel.async(
             context,
             start
@@ -165,11 +179,12 @@ class RetainedStateModel<T: Parcelable>(
         }
     }
 
-    fun clearResult() {
+    fun clearResult(arguments: Bundle? = null) {
         deferredViewModel.deferred?.cancel()
         deferredViewModel.deferred = null
         success = null
         error = null
+        this.arguments = arguments
     }
 
     fun savedInstanceState(): Bundle {
@@ -183,6 +198,7 @@ class RetainedStateModel<T: Parcelable>(
     companion object {
         const val STATE_SUCCESS = "SUCCESS"
         const val STATE_ERROR = "ERROR"
+        const val STATE_ARGUMENTS = "ARGUMENTS"
     }
 }
 
@@ -239,8 +255,6 @@ class Presenter(
 
     init {
         articleState.getResult(
-            // TODO: Might need to restart thumbnail if activity was killed during loading
-            // In general, the state should probably include information on how to restart the process
             onComplete = ::showArticle,
             onError = ::showError,
             onProgress = ::showArticleProgress
@@ -248,7 +262,10 @@ class Presenter(
         thumbnailState.getResult(
             onComplete = ::showThumbnail,
             onError = ::showThumbnailError,
-            onProgress = ::showThumbnailDownloadProgress
+            onProgress = ::showThumbnailDownloadProgress,
+            onInterrupted = {
+                downloadThumbnail(it.getString(ARGUMENT_URL)!!)
+            }
         )
     }
 
@@ -270,7 +287,7 @@ class Presenter(
         viewProxy.showProgress()
         launch {
             deferredArticle.await()
-                .onSuccess { downloadThumbnail(it) }
+                .onSuccess { downloadThumbnail(it.thumbnailUrl) }
                 .fold(
                     onSuccess = ::showArticle,
                     onFailure = ::showError
@@ -278,9 +295,12 @@ class Presenter(
         }
     }
 
-    private fun downloadThumbnail(article: Article) {
-        val deferredThumbnail = thumbnailState.asyncCatching {
-            thumbnailRepository.getThumbnail(article.thumbnailUrl)
+    private fun downloadThumbnail(thumbnailUrl: String) {
+        val arguments = Bundle().apply {
+            putString(ARGUMENT_URL, thumbnailUrl)
+        }
+        val deferredThumbnail = thumbnailState.asyncCatching(arguments = arguments) {
+            thumbnailRepository.getThumbnail(thumbnailUrl)
         }
         showThumbnailDownloadProgress(deferredThumbnail)
     }
@@ -314,6 +334,8 @@ class Presenter(
     companion object {
         const val STATE_ARTICLE = "ARTICLE"
         const val STATE_THUMBNAIL = "THUMBNAIL"
+
+        const val ARGUMENT_URL = "URL"
     }
 }
 
