@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MvpCoroutines</string>
+    <string name="download_random_page">Download random page</string>
+</resources>
