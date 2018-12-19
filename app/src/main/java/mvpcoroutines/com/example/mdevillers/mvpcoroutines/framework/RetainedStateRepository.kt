@@ -11,21 +11,25 @@ class RetainedStateRepository(
     private val bundle: Bundle,
     private val viewModelProvider: ViewModelProvider
 ) {
-    private val retainedStates = mutableMapOf<String, RetainedStateModel<*>>()
+    private val retainedStates = mutableMapOf<String, RetainedStateModel<*, *>>()
+
+    operator fun <T: Parcelable, R: Parcelable> get(key: String, execute: suspend (T) -> R): RetainedStateModel<T, R> =
+        RetainedStateModel(
+            bundle.getBundle(key) ?: Bundle(),
+            getDeferredViewModel(key),
+            execute
+        ).also {
+            retainedStates[key] = it
+        }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <T: Parcelable> get(key: String): RetainedStateModel<T> =
-        retainedStates.getOrPut(key) {
-            RetainedStateModel(
-                bundle.getBundle(key) ?: Bundle(),
-                viewModelProvider.get(key, DeferredViewModel::class.java) as DeferredViewModel<T>
-            )
-        } as RetainedStateModel<T>
+    private fun <R : Parcelable> getDeferredViewModel(key: String) =
+        viewModelProvider.get(key, DeferredViewModel::class.java) as DeferredViewModel<R>
 
     fun savedInstanceState(): Bundle =
         bundle.apply {
             retainedStates.forEach {
-                putBundle(it.key, it.value.savedInstanceState())
+                putBundle(it.key, it.value.save())
             }
         }
 }

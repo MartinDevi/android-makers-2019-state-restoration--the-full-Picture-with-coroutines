@@ -2,24 +2,21 @@ package mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework
 
 import android.os.Bundle
 import android.os.Parcelable
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Handles retaining a state of a computed result, combining view models and saved instance states.
  */
-class RetainedStateModel<T: Parcelable>(
+class RetainedStateModel<T: Parcelable, R: Parcelable>(
     private val bundle: Bundle,
-    private val deferredViewModel: DeferredViewModel<T>
+    private val deferredViewModel: DeferredViewModel<R>,
+    private val execute: suspend (T) -> R
 ) {
-    val deferred: Deferred<Result<T>>?
+    val deferred: Deferred<Result<R>>?
         get() = deferredViewModel.deferred
 
-    var success: T?
+    var success: R?
         get() = bundle.getParcelable(STATE_SUCCESS)
         private set(value) { bundle.putParcelable(STATE_SUCCESS, value) }
 
@@ -27,97 +24,78 @@ class RetainedStateModel<T: Parcelable>(
         get() = bundle.getSerializable(STATE_ERROR) as Throwable?
         private set(value) { bundle.putSerializable(STATE_ERROR, value) }
 
-    var arguments: Bundle?
-        get() = bundle.getBundle(STATE_ARGUMENTS)
-        private set(value) { bundle.putBundle(STATE_ARGUMENTS, value) }
+    var arguments: T?
+        get() = bundle.getParcelable(STATE_ARGUMENTS)
+        private set(value) { bundle.putParcelable(STATE_ARGUMENTS, value) }
 
-    /**
-     * Fold the existing state of the value.
-     *
-     * @param onComplete
-     *  Called if the result has been successfully obtained, with the computed value as parameter.
-     * @param onError
-     *  Called if the task failed to obtain the result, with the error thrown as parameter.
-     * @param onProgress
-     *  Called if the result is still being fetched, with the deferred result as parameter.
-     *
-     *  Note that this is often the default state of the view, in which case there's nothing to do.
-     */
-    inline fun getResult(
-        onComplete: (T) -> Unit  = {},
-        onError: (Throwable) -> Unit = {},
-        onProgress: (Deferred<Result<T>>) -> Unit = {},
-        onInterrupted: (Bundle) -> Unit = {}
-    ) {
-        val deferred = deferred
-        if (deferred == null) {
-            /*
-             * See if values can be fetched from previously saved state.
-             */
-            val success = this.success
-            val error = this.error
-            val arguments = this.arguments
-            when {
-                success != null -> onComplete(success)
-                error != null -> onError(error)
-                arguments != null -> onInterrupted(arguments)
-                // Else callback for "ready"/"idle" state?
-            }
-        } else {
-            if (deferred.isCompleted) {
-                val completed = deferred.getCompleted()
-                completed.fold(
-                    onSuccess = onComplete,
-                    onFailure = onError
-                )
-            } else {
-                onProgress(deferred)
+    init {
+        val arguments = this.arguments
+        if (arguments != null) {
+            if (deferred == null && success == null) {
+                @Suppress("DeferredResultUnused") // Should obtained deferred during `bind` call right after
+                start(arguments)
             }
         }
     }
 
     /**
-     * Start an async process.
+     * Bind to the existing state of the value.
      *
-     * @param arguments
-     *  An optional description of the process arguments which are used by the suspending block. If this is not-null,
-     *  then it can be used later to restart the process.
-     * @param block
-     *  The suspending block which computes the result.
-     *  This block should make sure to *not* capture any context-scoped instances, since it will be retained across
-     *  configuration changes.
+     * Note that since "idle" should be the default state of the view, there's no callback for it because there should
+     * be nothing to do.
+     *
+     * @param onActive
+     *  Called if the result is still being fetched, with the deferred result as parameter.
+     * @param onSuccess
+     *  Called if the result has been successfully obtained, with the computed value as parameter.
+     * @param onError
+     *  Called if the task failed to obtain the result, with the error thrown as parameter.
      */
-    fun asyncCatching(
-        context: CoroutineContext = EmptyCoroutineContext,
-        start: CoroutineStart = CoroutineStart.DEFAULT,
-        arguments: Bundle? = null,
-        block: suspend CoroutineScope.() -> T
-    ): Deferred<Result<T>> {
+    inline fun bind(
+        onActive: (Deferred<Result<R>>) -> Unit = {},
+        onSuccess: (R) -> Unit = {},
+        onError: (Throwable) -> Unit ={}
+    ) {
+        val success = this.success
+        val error = this.error
+        val deferred = deferred
+        when {
+            success != null -> onSuccess(success)
+            error != null -> onError(error)
+            deferred != null -> onActive(deferred)
+        }
+    }
+
+    fun save(): Bundle {
+        bind(
+            onSuccess = { success = it },
+            onError = { error = it }
+        )
+        return bundle
+    }
+
+    /**
+     * Start an async process with the provided arguments.
+     */
+    fun start(args: T): Deferred<Result<R>> {
         clearResult(arguments)
-        return deferredViewModel.async(
-            context,
-            start
-        ) {
-            runCatching { block() }
+        return deferredViewModel.async {
+            runCatching { execute(args) }
         }.also {
             deferredViewModel.deferred = it
         }
     }
 
-    fun clearResult(arguments: Bundle? = null) {
+    fun clear() {
+        clearResult()
+    }
+
+    private fun clearResult(arguments: T? = null) {
         deferredViewModel.deferred?.cancel()
         deferredViewModel.deferred = null
         success = null
         error = null
         this.arguments = arguments
-    }
-
-    fun savedInstanceState(): Bundle {
-        getResult(
-            onComplete = { success = it },
-            onError = { error = it }
-        )
-        return bundle
     }
 
     companion object {

@@ -2,6 +2,8 @@ package mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp
 
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.os.Parcel
+import android.os.Parcelable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
@@ -19,38 +21,39 @@ class Presenter(
     private val thumbnailRepository: ArticleThumbnailRepository
 ): Contract.Presenter, CoroutineScope by coroutineScope {
 
-    private val articleState: RetainedStateModel<Article>
-        get() = retainedStateRepository[STATE_ARTICLE]
-    private val thumbnailState: RetainedStateModel<Bitmap>
-        get() = retainedStateRepository[STATE_THUMBNAIL]
+    private val articleState: RetainedStateModel<Bundle, Article>
+    private val thumbnailState: RetainedStateModel<ThumbnailUrl, Bitmap>
 
     init {
-        articleState.getResult(
-            onComplete = ::showArticle,
-            onError = ::showError,
-            onProgress = ::showArticleProgress
+        articleState = retainedStateRepository[STATE_ARTICLE, ::downloadArticle]
+        articleState.bind(
+            onActive = ::showArticleProgress,
+            onSuccess = ::showArticle,
+            onError = ::showError
         )
-        thumbnailState.getResult(
-            onComplete = ::showThumbnail,
-            onError = ::showThumbnailError,
-            onProgress = ::showThumbnailDownloadProgress,
-            onInterrupted = {
-                downloadThumbnail(it.getString(ARGUMENT_URL)!!)
-            }
+        thumbnailState = retainedStateRepository[STATE_THUMBNAIL, ::downloadThumbnail]
+        thumbnailState.bind(
+            onActive = ::showThumbnailDownloadProgress,
+            onSuccess = ::showThumbnail,
+            onError = ::showThumbnailError
         )
     }
 
+    private suspend fun downloadArticle(bundle: Bundle): Article =
+        articleRepository.getArticle()
+
+    private suspend fun downloadThumbnail(thumbnailUrl: ThumbnailUrl): Bitmap =
+        thumbnailRepository.getThumbnail(thumbnailUrl.url)
+
     override fun onClickDownloadArticle() {
-        thumbnailState.clearResult()
-        val deferredArticle = articleState.asyncCatching {
-            articleRepository.getArticle()
-        }
+        thumbnailState.clear()
+        val deferredArticle = articleState.start(Bundle())
         showArticleProgress(deferredArticle)
     }
 
     override fun onClickClear() {
-        articleState.clearResult()
-        thumbnailState.clearResult()
+        articleState.clear()
+        thumbnailState.clear()
         viewProxy.showEmpty()
     }
 
@@ -67,12 +70,7 @@ class Presenter(
     }
 
     private fun downloadThumbnail(thumbnailUrl: String) {
-        val arguments = Bundle().apply {
-            putString(ARGUMENT_URL, thumbnailUrl)
-        }
-        val deferredThumbnail = thumbnailState.asyncCatching(arguments = arguments) {
-            thumbnailRepository.getThumbnail(thumbnailUrl)
-        }
+        val deferredThumbnail = thumbnailState.start(ThumbnailUrl(thumbnailUrl))
         showThumbnailDownloadProgress(deferredThumbnail)
     }
 
@@ -105,7 +103,20 @@ class Presenter(
     companion object {
         const val STATE_ARTICLE = "ARTICLE"
         const val STATE_THUMBNAIL = "THUMBNAIL"
+    }
 
-        const val ARGUMENT_URL = "URL"
+    private data class ThumbnailUrl(val url: String) : Parcelable {
+        constructor(parcel: Parcel) : this(parcel.readString()!!)
+
+        override fun writeToParcel(parcel: Parcel, flags: Int) {
+            parcel.writeString(url)
+        }
+
+        override fun describeContents(): Int = 0
+
+        companion object CREATOR : Parcelable.Creator<ThumbnailUrl> {
+            override fun createFromParcel(parcel: Parcel): ThumbnailUrl = ThumbnailUrl(parcel)
+            override fun newArray(size: Int): Array<ThumbnailUrl?> = arrayOfNulls(size)
+        }
     }
 }
