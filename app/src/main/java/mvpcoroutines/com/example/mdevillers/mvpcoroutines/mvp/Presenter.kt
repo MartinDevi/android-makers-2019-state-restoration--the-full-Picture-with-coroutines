@@ -2,29 +2,24 @@ package mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp
 
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
+import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.*
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.Article
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleRepository
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.RetainedStateModel
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.RetainedStateRepository
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.get
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.start
 
 class Presenter(
     private val viewProxy: Contract.ViewProxy,
     private val coroutineScope: CoroutineScope,
     val retainedStateRepository: RetainedStateRepository,
-    private val articleRepository: ArticleRepository,
-    private val thumbnailRepository: ArticleThumbnailRepository
+    articleRepository: ArticleRepository,
+    thumbnailRepository: ArticleThumbnailRepository
 ): Contract.Presenter, CoroutineScope by coroutineScope {
 
     private val articleState: RetainedStateModel<Bundle, Article>
-    private val thumbnailState: RetainedStateModel<ThumbnailUrl, Bitmap>
+    private val thumbnailState: RetainedStateModel<Bundle, Bitmap>
 
     init {
         articleState = retainedStateRepository[STATE_ARTICLE, articleRepository::getArticle ]
@@ -33,16 +28,13 @@ class Presenter(
             onSuccess = ::showArticle,
             onError = ::showError
         )
-        thumbnailState = retainedStateRepository[STATE_THUMBNAIL, ::executeDownloadThumbnail]
+        thumbnailState = retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail]
         thumbnailState.bind(
             onActive = ::showThumbnailDownloadProgress,
             onSuccess = ::showThumbnail,
             onError = ::showThumbnailError
         )
     }
-
-    private fun executeDownloadThumbnail(thumbnailUrl: ThumbnailUrl): Bitmap =
-        thumbnailRepository.getThumbnail(thumbnailUrl.url)
 
     override fun onClickDownloadArticle() {
         thumbnailState.clear()
@@ -69,7 +61,7 @@ class Presenter(
     }
 
     private fun downloadThumbnail(thumbnailUrl: String) {
-        val deferredThumbnail = thumbnailState.start(ThumbnailUrl(thumbnailUrl))
+        val deferredThumbnail = thumbnailState.start(thumbnailUrl)
         showThumbnailDownloadProgress(deferredThumbnail)
     }
 
@@ -102,20 +94,5 @@ class Presenter(
     companion object {
         const val STATE_ARTICLE = "ARTICLE"
         const val STATE_THUMBNAIL = "THUMBNAIL"
-    }
-
-    private data class ThumbnailUrl(val url: String) : Parcelable {
-        constructor(parcel: Parcel) : this(parcel.readString()!!)
-
-        override fun writeToParcel(parcel: Parcel, flags: Int) {
-            parcel.writeString(url)
-        }
-
-        override fun describeContents(): Int = 0
-
-        companion object CREATOR : Parcelable.Creator<ThumbnailUrl> {
-            override fun createFromParcel(parcel: Parcel): ThumbnailUrl = ThumbnailUrl(parcel)
-            override fun newArray(size: Int): Array<ThumbnailUrl?> = arrayOfNulls(size)
-        }
     }
 }

@@ -104,6 +104,3 @@ class RetainedStateModel<T: Parcelable, R: Parcelable>(
         const val STATE_ARGUMENTS = "ARGUMENTS"
     }
 }
-
-fun <R: Parcelable> RetainedStateModel<Bundle, R>.start(): Deferred<Result<R>> =
-        start(Bundle.EMPTY)
