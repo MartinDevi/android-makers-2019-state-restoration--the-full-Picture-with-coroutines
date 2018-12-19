@@ -10,25 +10,32 @@ import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.Article
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleRepository
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
 
-class Presenter(
+class Presenter private constructor(
     private val viewProxy: Contract.ViewProxy,
     private val coroutineScope: CoroutineScope,
-    retainedStateRepository: RetainedStateRepository,
-    articleRepository: ArticleRepository,
-    thumbnailRepository: ArticleThumbnailRepository
+    private val articleState: RetainedStateModel<Bundle, Article>,
+    private val thumbnailState: RetainedStateModel<Bundle, Bitmap>
 ): Contract.Presenter, CoroutineScope by coroutineScope {
 
-    private val articleState: RetainedStateModel<Bundle, Article>
-    private val thumbnailState: RetainedStateModel<Bundle, Bitmap>
+    constructor(
+        viewProxy: Contract.ViewProxy,
+        coroutineScope: CoroutineScope,
+        retainedStateRepository: RetainedStateRepository,
+        articleRepository: ArticleRepository,
+        thumbnailRepository: ArticleThumbnailRepository
+    ): this(
+        viewProxy,
+        coroutineScope,
+        retainedStateRepository[STATE_ARTICLE, articleRepository::getArticle ],
+        with(StringStateHelper) { retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail] }
+    )
 
     init {
-        articleState = retainedStateRepository[STATE_ARTICLE, articleRepository::getArticle ]
         articleState.bind(
             onActive = ::showArticleProgress,
             onSuccess = ::showArticle,
             onError = ::showError
         )
-        thumbnailState = with(StringStateHelper) { retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail] }
         thumbnailState.bind(
             onActive = ::showThumbnailDownloadProgress,
             onSuccess = ::showThumbnail,
