@@ -29,6 +29,8 @@ class RetainedStateModel<T: Parcelable, R: Parcelable>(
         private set(value) { bundle.putParcelable(STATE_ARGUMENTS, value) }
 
     init {
+        persistResult()
+
         val arguments = this.arguments
         if (arguments != null) {
             if (deferred == null && success == null) {
@@ -67,10 +69,7 @@ class RetainedStateModel<T: Parcelable, R: Parcelable>(
     }
 
     fun save(): Bundle {
-        bind(
-            onSuccess = { success = it },
-            onError = { error = it }
-        )
+        persistResult()
         return bundle
     }
 
@@ -96,6 +95,17 @@ class RetainedStateModel<T: Parcelable, R: Parcelable>(
         success = null
         error = null
         this.arguments = arguments
+    }
+
+    private fun persistResult() {
+        val deferred = this.deferred ?: return
+        if (deferred.isCompleted) {
+            val completed = deferred.getCompleted()
+            completed.fold(
+                onSuccess = { success = it },
+                onFailure = { error = it }
+            )
+        }
     }
 
     companion object {
