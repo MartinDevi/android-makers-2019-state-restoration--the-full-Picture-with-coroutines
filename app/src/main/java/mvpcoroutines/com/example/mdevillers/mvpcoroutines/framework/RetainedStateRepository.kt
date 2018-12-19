@@ -33,3 +33,10 @@ class RetainedStateRepository(
             }
         }
 }
+
+
+inline operator fun <T: Parcelable, R: Parcelable> RetainedStateRepository.get(key: String, crossinline execute: (T) -> R): RetainedStateModel<T, R> =
+    get(key) { execute(it) }
+
+inline operator fun <R: Parcelable> RetainedStateRepository.get(key: String, crossinline execute: () -> R): RetainedStateModel<Bundle, R> =
+    get(key) { execute() }

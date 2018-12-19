@@ -12,6 +12,8 @@ import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleRepositor
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.RetainedStateModel
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.RetainedStateRepository
+import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.get
+import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.start
 
 class Presenter(
     private val viewProxy: Contract.ViewProxy,
@@ -25,13 +27,13 @@ class Presenter(
     private val thumbnailState: RetainedStateModel<ThumbnailUrl, Bitmap>
 
     init {
-        articleState = retainedStateRepository[STATE_ARTICLE, ::downloadArticle]
+        articleState = retainedStateRepository[STATE_ARTICLE, articleRepository::getArticle ]
         articleState.bind(
             onActive = ::showArticleProgress,
             onSuccess = ::showArticle,
             onError = ::showError
         )
-        thumbnailState = retainedStateRepository[STATE_THUMBNAIL, ::downloadThumbnail]
+        thumbnailState = retainedStateRepository[STATE_THUMBNAIL, ::executeDownloadThumbnail]
         thumbnailState.bind(
             onActive = ::showThumbnailDownloadProgress,
             onSuccess = ::showThumbnail,
@@ -39,15 +41,12 @@ class Presenter(
         )
     }
 
-    private suspend fun downloadArticle(bundle: Bundle): Article =
-        articleRepository.getArticle()
-
-    private suspend fun downloadThumbnail(thumbnailUrl: ThumbnailUrl): Bitmap =
+    private fun executeDownloadThumbnail(thumbnailUrl: ThumbnailUrl): Bitmap =
         thumbnailRepository.getThumbnail(thumbnailUrl.url)
 
     override fun onClickDownloadArticle() {
         thumbnailState.clear()
-        val deferredArticle = articleState.start(Bundle())
+        val deferredArticle = articleState.start()
         showArticleProgress(deferredArticle)
     }
 
