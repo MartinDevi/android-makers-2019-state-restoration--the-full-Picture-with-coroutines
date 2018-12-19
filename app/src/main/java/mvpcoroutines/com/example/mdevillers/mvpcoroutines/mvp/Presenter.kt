@@ -28,7 +28,7 @@ class Presenter(
             onSuccess = ::showArticle,
             onError = ::showError
         )
-        thumbnailState = retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail]
+        thumbnailState = with(StringStateHelper) { retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail] }
         thumbnailState.bind(
             onActive = ::showThumbnailDownloadProgress,
             onSuccess = ::showThumbnail,
@@ -61,7 +61,7 @@ class Presenter(
     }
 
     private fun downloadThumbnail(thumbnailUrl: String) {
-        val deferredThumbnail = thumbnailState.start(thumbnailUrl)
+        val deferredThumbnail = with(StringStateHelper) { thumbnailState.start(thumbnailUrl) }
         showThumbnailDownloadProgress(deferredThumbnail)
     }
 
