@@ -24,6 +24,9 @@ object IntStateHelper {
         start(Bundle().apply { putInt(KEY_ARG, args) })
 }
 
+inline operator fun <R: Parcelable> RetainedStateRepository.get(key: String, crossinline execute: suspend () -> R): RetainedStateModel<Bundle, R> =
+    get(key) { execute() }
+
 inline operator fun <R: Parcelable> RetainedStateRepository.get(key: String, crossinline execute: () -> R): RetainedStateModel<Bundle, R> =
     get(key) { execute() }
 

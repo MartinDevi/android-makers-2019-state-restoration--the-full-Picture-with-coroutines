@@ -2,6 +2,7 @@ package mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework
 
 import android.os.Bundle
 import android.os.Parcelable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 
@@ -76,10 +77,10 @@ class RetainedStateModel<T: Parcelable, R: Parcelable>(
     /**
      * Start an async process with the provided arguments.
      */
-    fun start(args: T): Deferred<Result<R>> {
+    fun start(arguments: T): Deferred<Result<R>> {
         clearResult(arguments)
         return deferredViewModel.async {
-            runCatching { execute(args) }
+            runCatching { execute(arguments) }
         }.also {
             deferredViewModel.deferred = it
         }
@@ -103,7 +104,7 @@ class RetainedStateModel<T: Parcelable, R: Parcelable>(
             val completed = deferred.getCompleted()
             completed.fold(
                 onSuccess = { success = it },
-                onFailure = { error = it }
+                onFailure = { error = it.takeUnless { throwable -> throwable is CancellationException } }
             )
         }
     }
