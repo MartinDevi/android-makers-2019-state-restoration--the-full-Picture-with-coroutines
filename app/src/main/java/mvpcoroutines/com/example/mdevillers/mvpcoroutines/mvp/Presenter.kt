@@ -13,7 +13,7 @@ import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleThumbnail
 class Presenter(
     private val viewProxy: Contract.ViewProxy,
     private val coroutineScope: CoroutineScope,
-    val retainedStateRepository: RetainedStateRepository,
+    retainedStateRepository: RetainedStateRepository,
     articleRepository: ArticleRepository,
     thumbnailRepository: ArticleThumbnailRepository
 ): Contract.Presenter, CoroutineScope by coroutineScope {

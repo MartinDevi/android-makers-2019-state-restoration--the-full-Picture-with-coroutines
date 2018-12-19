@@ -12,21 +12,24 @@ import mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp.ViewProxy
 
 class MainActivity : AppCompatActivity() {
 
-    private val job = Job()
+    private val job = SupervisorJob()
 
-    private lateinit var presenter: Presenter
+    private lateinit var stateRepository: RetainedStateRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        stateRepository = RetainedStateRepository(
+            savedInstanceState?.getBundle(STATE_PRESENTER) ?: Bundle(),
+            ViewModelProviders.of(this)
+        )
+
         val viewProxy = ViewProxy(window.decorView)
-        presenter = Presenter(
+        Presenter(
             viewProxy,
             CoroutineScope(Dispatchers.Main + job),
-            RetainedStateRepository(
-                savedInstanceState?.getBundle(STATE_PRESENTER) ?: Bundle(),
-                ViewModelProviders.of(this)
-            ),
+            stateRepository,
             ArticleRepository(Singleton.callFactory),
             ArticleThumbnailRepository(Singleton.callFactory)
         ).also {
@@ -36,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBundle(STATE_PRESENTER, presenter.retainedStateRepository.savedInstanceState())
+        outState.putBundle(STATE_PRESENTER, stateRepository.savedInstanceState())
     }
 
     override fun onDestroy() {
