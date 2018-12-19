@@ -19,7 +19,8 @@ class ArticleRepository(private val callFactory: Call.Factory) {
                 getString("title").apply { check(isNotEmpty()) { "Empty title" } },
                 getString("description"),
                 getString("extract"),
-                getJSONObject("thumbnail").getString("source")
+                // Use original image rather than the pre-shrunk thumbnail so that the task takes longer (easier for testing)
+                getJSONObject("originalimage").getString("source")
             )
         }
     }
