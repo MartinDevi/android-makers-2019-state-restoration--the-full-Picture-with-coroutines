@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import com.example.mdevillers.mvpcoroutines.model.Article
 import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
 import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
+import com.example.mdevillers.mvpcoroutines.model.Wikipedia
 
 class Presenter private constructor(
     private val viewProxy: Contract.ViewProxy,
@@ -29,8 +30,8 @@ class Presenter private constructor(
     ): this(
         viewProxy,
         coroutineScope,
-        retainedStateRepository[STATE_ARTICLE, { it: Bundle -> articleRepository.getArticle() } ],
-        with(StringStateHelper) { retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail] }
+        retainedStateRepository[STATE_ARTICLE, { it: Bundle -> Wikipedia.getRandomArticle() } ],
+        with(StringStateHelper) { retainedStateRepository[STATE_THUMBNAIL, { it: Bundle -> Wikipedia.getThumbnail() }] }
     )
 
     init {

@@ -8,14 +8,4 @@ import okhttp3.Request
 class ArticleThumbnailRepository(
     private val callFactory: Call.Factory
 ) {
-    fun getThumbnail(url: String): Bitmap {
-        val request = Request.Builder()
-            .url(url)
-            .build()
-        val call = callFactory.newCall(request)
-        val response = call.execute()
-        return response.body()!!.byteStream().use {
-            BitmapFactory.decodeStream(it)
-        }
-    }
 }
