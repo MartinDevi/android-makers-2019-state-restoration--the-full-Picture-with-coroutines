@@ -10,8 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 import com.example.mdevillers.mvpcoroutines.model.Article
-import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
-import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
 import com.example.mdevillers.mvpcoroutines.model.Wikipedia
 
 class Presenter private constructor(
@@ -24,9 +22,7 @@ class Presenter private constructor(
     constructor(
         viewProxy: Contract.ViewProxy,
         coroutineScope: CoroutineScope,
-        retainedStateRepository: RetainedStateRepository,
-        articleRepository: ArticleRepository,
-        thumbnailRepository: ArticleThumbnailRepository
+        retainedStateRepository: RetainedStateRepository
     ): this(
         viewProxy,
         coroutineScope,

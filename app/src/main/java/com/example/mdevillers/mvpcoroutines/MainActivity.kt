@@ -1,21 +1,18 @@
 package com.example.mdevillers.mvpcoroutines
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import androidx.lifecycle.ViewModelProviders
-import kotlinx.coroutines.*
-import com.example.mdevillers.mvpcoroutines.framework.RetainedStateRepository
-import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
-import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
-import com.example.mdevillers.mvpcoroutines.mvp.Presenter
+import androidx.appcompat.app.AppCompatActivity
+import com.example.mdevillers.mvpcoroutines.model.Wikipedia
 import com.example.mdevillers.mvpcoroutines.mvp.ViewProxy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
 class MainActivity(
     private val scope: CoroutineScope = MainScope()
 ) : AppCompatActivity(), CoroutineScope by scope {
-
-    private lateinit var stateRepository: RetainedStateRepository
 
     override val coroutineContext: CoroutineContext
         get() = scope.coroutineContext
@@ -23,36 +20,25 @@ class MainActivity(
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val viewProxy = ViewProxy(this)
 
-        stateRepository = RetainedStateRepository(
-            savedInstanceState?.getBundle(STATE_PRESENTER) ?: Bundle(),
-            ViewModelProviders.of(this)
-        )
-
-        val viewProxy = ViewProxy(window.decorView)
-        Presenter(
-            viewProxy,
-            scope,
-            stateRepository,
-            ArticleRepository(Singleton.callFactory),
-            ArticleThumbnailRepository(Singleton.callFactory)
-        ).also {
-            viewProxy.presenter = it
+        viewProxy.onClickDownloadRandomPage {
+            viewProxy.showProgress()
+            launch {
+                val article = try {
+                    Wikipedia.getRandomArticle()
+                } catch (e: Exception) {
+                    viewProxy.showError(e.message ?: "Unknown error")
+                    return@launch
+                }
+                viewProxy.showArticle(article)
+            }
         }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putBundle(STATE_PRESENTER, stateRepository.savedInstanceState())
     }
 
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
-    }
-
-    companion object {
-        const val STATE_PRESENTER = "PRESENTER"
     }
 }
 

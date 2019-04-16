@@ -1,5 +1,6 @@
 package com.example.mdevillers.mvpcoroutines.mvp
 
+import android.app.Activity
 import android.graphics.Bitmap
 import android.view.View
 import android.widget.ImageView
@@ -9,6 +10,8 @@ import com.example.mdevillers.mvpcoroutines.model.Article
 
 class ViewProxy(private val view: View):
     Contract.ViewProxy {
+
+    constructor(activity: Activity): this(activity.window.decorView)
 
     var presenter: Contract.Presenter? = null
 
@@ -36,6 +39,10 @@ class ViewProxy(private val view: View):
     init {
         button.setOnClickListener { presenter?.onClickDownloadArticle() }
         clearButton.setOnClickListener { presenter?.onClickClear() }
+    }
+
+    fun onClickDownloadRandomPage(onClick: () -> Unit) {
+        button.setOnClickListener { onClick() }
     }
 
     override fun showEmpty() {
