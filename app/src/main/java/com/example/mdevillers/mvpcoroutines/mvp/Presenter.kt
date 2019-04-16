@@ -9,7 +9,6 @@ import com.example.mdevillers.mvpcoroutines.framework.start
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.*
 import com.example.mdevillers.mvpcoroutines.model.Article
 import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
 import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
@@ -30,7 +29,7 @@ class Presenter private constructor(
     ): this(
         viewProxy,
         coroutineScope,
-        retainedStateRepository[STATE_ARTICLE, articleRepository::getArticle ],
+        retainedStateRepository[STATE_ARTICLE, { it: Bundle -> articleRepository.getArticle() } ],
         with(StringStateHelper) { retainedStateRepository[STATE_THUMBNAIL, thumbnailRepository::getThumbnail] }
     )
 

@@ -9,12 +9,16 @@ import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
 import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
 import com.example.mdevillers.mvpcoroutines.mvp.Presenter
 import com.example.mdevillers.mvpcoroutines.mvp.ViewProxy
+import kotlin.coroutines.CoroutineContext
 
-class MainActivity : AppCompatActivity() {
-
-    private val job = SupervisorJob()
+class MainActivity(
+    private val scope: CoroutineScope = MainScope()
+) : AppCompatActivity(), CoroutineScope by scope {
 
     private lateinit var stateRepository: RetainedStateRepository
+
+    override val coroutineContext: CoroutineContext
+        get() = scope.coroutineContext
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,7 +32,7 @@ class MainActivity : AppCompatActivity() {
         val viewProxy = ViewProxy(window.decorView)
         Presenter(
             viewProxy,
-            CoroutineScope(Dispatchers.Main + job),
+            scope,
             stateRepository,
             ArticleRepository(Singleton.callFactory),
             ArticleThumbnailRepository(Singleton.callFactory)
@@ -44,7 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        job.cancel()
+        scope.cancel()
     }
 
     companion object {
