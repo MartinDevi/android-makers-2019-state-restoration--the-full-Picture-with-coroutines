@@ -1,4 +1,4 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework
+package com.example.mdevillers.mvpcoroutines.framework
 
 import android.os.Parcelable
 import androidx.lifecycle.ViewModel

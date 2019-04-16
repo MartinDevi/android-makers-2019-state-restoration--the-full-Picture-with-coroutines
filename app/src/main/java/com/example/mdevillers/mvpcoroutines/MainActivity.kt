@@ -1,14 +1,14 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines
+package com.example.mdevillers.mvpcoroutines
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.coroutines.*
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.RetainedStateRepository
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleRepository
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp.Presenter
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp.ViewProxy
+import com.example.mdevillers.mvpcoroutines.framework.RetainedStateRepository
+import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
+import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
+import com.example.mdevillers.mvpcoroutines.mvp.Presenter
+import com.example.mdevillers.mvpcoroutines.mvp.ViewProxy
 
 class MainActivity : AppCompatActivity() {
 

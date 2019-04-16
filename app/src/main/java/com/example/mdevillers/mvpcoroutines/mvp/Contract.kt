@@ -1,7 +1,7 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp
+package com.example.mdevillers.mvpcoroutines.mvp
 
 import android.graphics.Bitmap
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.Article
+import com.example.mdevillers.mvpcoroutines.model.Article
 
 interface Contract {
     interface ViewProxy {

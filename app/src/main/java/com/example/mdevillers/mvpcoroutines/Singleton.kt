@@ -1,4 +1,4 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines
+package com.example.mdevillers.mvpcoroutines
 
 import okhttp3.Call
 import okhttp3.OkHttpClient

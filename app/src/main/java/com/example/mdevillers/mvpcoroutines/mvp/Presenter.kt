@@ -1,14 +1,18 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp
+package com.example.mdevillers.mvpcoroutines.mvp
 
 import android.graphics.Bitmap
 import android.os.Bundle
+import com.example.mdevillers.mvpcoroutines.framework.RetainedStateModel
+import com.example.mdevillers.mvpcoroutines.framework.RetainedStateRepository
+import com.example.mdevillers.mvpcoroutines.framework.StringStateHelper
+import com.example.mdevillers.mvpcoroutines.framework.start
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 import mvpcoroutines.com.example.mdevillers.mvpcoroutines.framework.*
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.Article
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleRepository
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
+import com.example.mdevillers.mvpcoroutines.model.Article
+import com.example.mdevillers.mvpcoroutines.model.ArticleRepository
+import com.example.mdevillers.mvpcoroutines.model.ArticleThumbnailRepository
 
 class Presenter private constructor(
     private val viewProxy: Contract.ViewProxy,

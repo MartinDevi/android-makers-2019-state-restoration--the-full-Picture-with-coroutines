@@ -1,11 +1,11 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines.mvp
+package com.example.mdevillers.mvpcoroutines.mvp
 
 import android.graphics.Bitmap
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.model.Article
-import mvpcoroutines.com.example.mdevillers.mvpcoroutines.R
+import com.example.mdevillers.mvpcoroutines.R
+import com.example.mdevillers.mvpcoroutines.model.Article
 
 class ViewProxy(private val view: View):
     Contract.ViewProxy {

@@ -1,4 +1,4 @@
-package mvpcoroutines.com.example.mdevillers.mvpcoroutines.model
+package com.example.mdevillers.mvpcoroutines.model
 
 import okhttp3.Call
 import okhttp3.Request
