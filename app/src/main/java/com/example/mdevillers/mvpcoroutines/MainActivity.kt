@@ -3,7 +3,7 @@ package com.example.mdevillers.mvpcoroutines
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.mdevillers.mvpcoroutines.model.Wikipedia
-import com.example.mdevillers.mvpcoroutines.mvp.ViewProxy
+import com.example.mdevillers.mvpcoroutines.view.ViewProxy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel

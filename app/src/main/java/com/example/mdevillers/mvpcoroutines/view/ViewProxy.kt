@@ -1,4 +1,4 @@
-package com.example.mdevillers.mvpcoroutines.mvp
+package com.example.mdevillers.mvpcoroutines.view
 
 import android.app.Activity
 import android.graphics.Bitmap
@@ -8,12 +8,9 @@ import android.widget.TextView
 import com.example.mdevillers.mvpcoroutines.R
 import com.example.mdevillers.mvpcoroutines.model.Article
 
-class ViewProxy(private val view: View):
-    Contract.ViewProxy {
+class ViewProxy(private val view: View) {
 
     constructor(activity: Activity): this(activity.window.decorView)
-
-    var presenter: Contract.Presenter? = null
 
     private val button: View
         get() = view.findViewById(R.id.button)
@@ -36,16 +33,15 @@ class ViewProxy(private val view: View):
     private val error: TextView
         get() = view.findViewById(R.id.error)
 
-    init {
-        button.setOnClickListener { presenter?.onClickDownloadArticle() }
-        clearButton.setOnClickListener { presenter?.onClickClear() }
-    }
-
     fun onClickDownloadRandomPage(onClick: () -> Unit) {
         button.setOnClickListener { onClick() }
     }
 
-    override fun showEmpty() {
+    fun onClickClear(onClick: () -> Unit) {
+        clearButton.setOnClickListener { onClick() }
+    }
+
+    fun showEmpty() {
         progress.visibility = View.INVISIBLE
         title.visibility = View.INVISIBLE
         description.visibility = View.INVISIBLE
@@ -56,7 +52,7 @@ class ViewProxy(private val view: View):
         thumbnailError.visibility = View.INVISIBLE
     }
 
-    override fun showProgress() {
+    fun showProgress() {
         progress.visibility = View.VISIBLE
         title.visibility = View.INVISIBLE
         description.visibility = View.INVISIBLE
@@ -67,7 +63,7 @@ class ViewProxy(private val view: View):
         thumbnailError.visibility = View.INVISIBLE
     }
 
-    override fun showArticle(article: Article) {
+    fun showArticle(article: Article) {
         progress.visibility = View.INVISIBLE
         title.text = article.title
         title.visibility = View.VISIBLE
@@ -81,7 +77,7 @@ class ViewProxy(private val view: View):
         thumbnailError.visibility = View.INVISIBLE
     }
 
-    override fun showError(message: String) {
+    fun showError(message: String) {
         progress.visibility = View.INVISIBLE
         title.visibility = View.INVISIBLE
         description.visibility = View.INVISIBLE
@@ -93,20 +89,20 @@ class ViewProxy(private val view: View):
         thumbnailError.visibility = View.INVISIBLE
     }
 
-    override fun showThumbnailProgress() {
+    fun showThumbnailProgress() {
         thumbnailProgress.visibility = View.VISIBLE
         thumbnail.visibility = View.INVISIBLE
         thumbnailError.visibility = View.INVISIBLE
     }
 
-    override fun showThumbnail(bitmap: Bitmap) {
+    fun showThumbnail(bitmap: Bitmap) {
         thumbnailProgress.visibility = View.INVISIBLE
         thumbnailError.visibility = View.INVISIBLE
         thumbnail.setImageBitmap(bitmap)
         thumbnail.visibility = View.VISIBLE
     }
 
-    override fun showThumbnailError(message: String) {
+    fun showThumbnailError(message: String) {
         thumbnailProgress.visibility = View.INVISIBLE
         thumbnail.visibility = View.INVISIBLE
         thumbnailError.text = message
