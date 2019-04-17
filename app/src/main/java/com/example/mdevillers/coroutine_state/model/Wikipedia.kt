@@ -1,4 +1,4 @@
-package com.example.mdevillers.mvpcoroutines.model
+package com.example.mdevillers.coroutine_state.model
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

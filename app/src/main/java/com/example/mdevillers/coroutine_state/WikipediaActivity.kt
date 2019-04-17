@@ -1,9 +1,9 @@
-package com.example.mdevillers.mvpcoroutines
+package com.example.mdevillers.coroutine_state
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.example.mdevillers.mvpcoroutines.model.Wikipedia
-import com.example.mdevillers.mvpcoroutines.view.WikipediaView
+import com.example.mdevillers.coroutine_state.model.Wikipedia
+import com.example.mdevillers.coroutine_state.view.WikipediaView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel

@@ -1,7 +1,7 @@
-package com.example.mdevillers.mvpcoroutines.view
+package com.example.mdevillers.coroutine_state.view
 
 import android.graphics.Bitmap
-import com.example.mdevillers.mvpcoroutines.model.WikipediaArticle
+import com.example.mdevillers.coroutine_state.model.WikipediaArticle
 
 interface WikipediaView {
 

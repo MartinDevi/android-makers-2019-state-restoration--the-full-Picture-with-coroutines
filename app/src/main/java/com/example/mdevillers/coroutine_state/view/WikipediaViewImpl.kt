@@ -1,14 +1,14 @@
-package com.example.mdevillers.mvpcoroutines.view
+package com.example.mdevillers.coroutine_state.view
 
 import android.graphics.Bitmap
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
-import com.example.mdevillers.mvpcoroutines.R
-import com.example.mdevillers.mvpcoroutines.WikipediaActivity
-import com.example.mdevillers.mvpcoroutines.model.WikipediaArticle
-import com.example.mdevillers.mvpcoroutines.view.WikipediaView.State
-import com.example.mdevillers.mvpcoroutines.view.WikipediaView.State.*
+import com.example.mdevillers.coroutine_state.R
+import com.example.mdevillers.coroutine_state.WikipediaActivity
+import com.example.mdevillers.coroutine_state.model.WikipediaArticle
+import com.example.mdevillers.coroutine_state.view.WikipediaView.State
+import com.example.mdevillers.coroutine_state.view.WikipediaView.State.*
 import kotlin.properties.Delegates
 
 @Suppress("FunctionName")
