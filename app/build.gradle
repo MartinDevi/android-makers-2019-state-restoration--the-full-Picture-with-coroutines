@@ -5,7 +5,7 @@ apply plugin: 'kotlin-kapt'
 android {
     compileSdkVersion 28
     defaultConfig {
-        applicationId "mvpcoroutines.com.example.mdevillers.mvpcoroutines"
+        applicationId "com.example.mdevillers.coroutine_state"
         minSdkVersion 24
         targetSdkVersion 28
         versionCode 1
