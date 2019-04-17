@@ -14,18 +14,18 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val viewProxy = WikipediaView(this)
+        val view = WikipediaView(this)
 
-        viewProxy.onClickDownloadRandomPage {
-            viewProxy.state = WikipediaView.State.ArticleProgress
+        view.onClickDownloadRandomPage {
+            view.state = WikipediaView.State.ArticleProgress
             launch {
                 val article = try {
                     Wikipedia.getRandomArticle()
                 } catch (e: Exception) {
-                    viewProxy.state = WikipediaView.State.ArticleError(e)
+                    view.state = WikipediaView.State.ArticleError(e)
                     return@launch
                 }
-                viewProxy.state = WikipediaView.State.ArticleDownloaded(article)
+                view.state = WikipediaView.State.ArticleDownloaded(article)
             }
         }
     }

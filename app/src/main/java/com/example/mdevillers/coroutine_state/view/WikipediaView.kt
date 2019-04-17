@@ -7,6 +7,9 @@ interface WikipediaView {
 
     var state: State
 
+    fun onClickDownloadRandomPage(onClick: () -> Unit)
+    fun onClickClear(onClick: () -> Unit)
+
     sealed class State {
         object Empty : State()
         object ArticleProgress : State()

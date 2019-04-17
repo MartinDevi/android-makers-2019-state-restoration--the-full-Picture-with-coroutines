@@ -12,7 +12,7 @@ import com.example.mdevillers.coroutine_state.view.WikipediaView.State.*
 import kotlin.properties.Delegates
 
 @Suppress("FunctionName")
-fun WikipediaView(activity: WikipediaActivity) =
+fun WikipediaView(activity: WikipediaActivity): WikipediaView =
     WikipediaViewImpl(activity.window.decorView)
 
 class WikipediaViewImpl(private val view: View): WikipediaView {
@@ -50,11 +50,11 @@ class WikipediaViewImpl(private val view: View): WikipediaView {
     private val error: TextView
         get() = view.findViewById(R.id.error)
 
-    fun onClickDownloadRandomPage(onClick: () -> Unit) {
+    override fun onClickDownloadRandomPage(onClick: () -> Unit) {
         button.setOnClickListener { onClick() }
     }
 
-    fun onClickClear(onClick: () -> Unit) {
+    override fun onClickClear(onClick: () -> Unit) {
         clearButton.setOnClickListener { onClick() }
     }
 
