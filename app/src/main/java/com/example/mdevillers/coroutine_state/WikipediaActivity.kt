@@ -13,12 +13,19 @@ import kotlinx.coroutines.channels.actor
 
 class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
+    private var article: WikipediaArticle? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val view = WikipediaView(this)
 
         val articleDownloadViewModel = ViewModelProviders.of(this).get(ArticleDownloadViewModel::class.java)
+        // Note: can use `SavedStateHandle` inside `ViewModel` once androidx.lifecycle:lifecycle-viewmodel-savedstate:1.0.0 becomes stable
+        article = savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.also {
+            view.state = WikipediaView.State.ArticleDownloaded(it)
+        }
+
         val actor = actor<ActorCommand>(start = CoroutineStart.UNDISPATCHED) {
             articleDownloadViewModel.deferred?.let {
                 bindDeferredArticle(view, it)
@@ -30,7 +37,7 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         bindDeferredArticle(view, deferred)
                     }
                     ActorCommand.CLEAR -> {
-                        articleDownloadViewModel.clear()
+                        clearArticle(articleDownloadViewModel)
                         view.state = WikipediaView.State.Empty
                     }
                 }.exhaustive
@@ -56,6 +63,17 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             return
         }
         view.state = WikipediaView.State.ArticleDownloaded(article)
+        this.article = article
+    }
+
+    private fun clearArticle(articleDownloadViewModel: ArticleDownloadViewModel) {
+        article = null
+        articleDownloadViewModel.clear()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putParcelable(STATE_ARTICLE, article)
     }
 
     override fun onDestroy() {
@@ -68,7 +86,7 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         CLEAR
     }
 
-    // Note: can use `viewModelScope` extension property once androidx lifecycle 2.1.0 becomes stable
+    // Note: can use `viewModelScope` extension property once androidx.lifecycle:lifecycle-viewmodel-ktx:2.1.0 becomes stable
     class ArticleDownloadViewModel: ViewModel(), CoroutineScope by MainScope() {
 
         private var _deferred: Deferred<WikipediaArticle>? = null
@@ -87,6 +105,10 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             super.onCleared()
             cancel()
         }
+    }
+
+    companion object {
+        private const val STATE_ARTICLE = "Article"
     }
 }
 
