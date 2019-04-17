@@ -6,7 +6,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:padding="16dp"
-        tools:context=".MainActivity">
+        tools:context=".WikipediaActivity">
 
     <Button
             android:id="@+id/button"
@@ -42,7 +42,7 @@
             android:textAppearance="?android:textAppearanceLarge"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/thumbnail"
+            app:layout_constraintEnd_toStartOf="@id/image"
             tools:text="Lorem Ipsum"/>
 
     <TextView
@@ -52,11 +52,11 @@
             android:textAppearance="?android:textAppearanceMedium"
             app:layout_constraintTop_toBottomOf="@id/title"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/thumbnail"
+            app:layout_constraintEnd_toStartOf="@id/image"
             tools:text="Dolor sin amet"/>
 
     <ImageView
-            android:id="@+id/thumbnail"
+            android:id="@+id/image"
             android:layout_width="124dp"
             android:layout_height="124dp"
             android:layout_marginStart="8dp"
@@ -67,27 +67,27 @@
             tools:visibility="visible"/>
 
     <ProgressBar
-            android:id="@+id/thumbnail_progress"
+            android:id="@+id/image_progress"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="invisible"
-            app:layout_constraintLeft_toLeftOf="@id/thumbnail"
-            app:layout_constraintRight_toRightOf="@id/thumbnail"
-            app:layout_constraintTop_toTopOf="@id/thumbnail"
-            app:layout_constraintBottom_toBottomOf="@id/thumbnail"
+            app:layout_constraintLeft_toLeftOf="@id/image"
+            app:layout_constraintRight_toRightOf="@id/image"
+            app:layout_constraintTop_toTopOf="@id/image"
+            app:layout_constraintBottom_toBottomOf="@id/image"
             tools:visibility="visible"/>
 
     <TextView
-            android:id="@+id/thumbnail_error"
+            android:id="@+id/image_error"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:visibility="invisible"
             android:gravity="center"
             android:textAppearance="?android:attr/textAppearanceSmall"
-            app:layout_constraintLeft_toLeftOf="@id/thumbnail"
-            app:layout_constraintRight_toRightOf="@id/thumbnail"
-            app:layout_constraintTop_toTopOf="@id/thumbnail"
-            app:layout_constraintBottom_toBottomOf="@id/thumbnail"
+            app:layout_constraintLeft_toLeftOf="@id/image"
+            app:layout_constraintRight_toRightOf="@id/image"
+            app:layout_constraintTop_toTopOf="@id/image"
+            app:layout_constraintBottom_toBottomOf="@id/image"
             tools:text="Error"
             tools:visibility="visible"/>
 
@@ -96,7 +96,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:barrierDirection="bottom"
-            app:constraint_referenced_ids="description,thumbnail"/>
+            app:constraint_referenced_ids="description,image"/>
 
     <TextView
             android:id="@+id/extract"

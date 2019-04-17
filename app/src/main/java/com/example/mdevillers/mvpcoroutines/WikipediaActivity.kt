@@ -3,14 +3,14 @@ package com.example.mdevillers.mvpcoroutines
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.mdevillers.mvpcoroutines.model.Wikipedia
-import com.example.mdevillers.mvpcoroutines.view.ViewProxy
+import com.example.mdevillers.mvpcoroutines.view.WikipediaView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
-class MainActivity(
+class WikipediaActivity(
     private val scope: CoroutineScope = MainScope()
 ) : AppCompatActivity(), CoroutineScope by scope {
 
@@ -20,18 +20,18 @@ class MainActivity(
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val viewProxy = ViewProxy(this)
+        val viewProxy = WikipediaView(this)
 
         viewProxy.onClickDownloadRandomPage {
-            viewProxy.showProgress()
+            viewProxy.state = WikipediaView.State.ArticleProgress
             launch {
                 val article = try {
                     Wikipedia.getRandomArticle()
                 } catch (e: Exception) {
-                    viewProxy.showError(e.message ?: "Unknown error")
+                    viewProxy.state = WikipediaView.State.ArticleError(e)
                     return@launch
                 }
-                viewProxy.showArticle(article)
+                viewProxy.state = WikipediaView.State.ArticleDownloaded(article)
             }
         }
     }

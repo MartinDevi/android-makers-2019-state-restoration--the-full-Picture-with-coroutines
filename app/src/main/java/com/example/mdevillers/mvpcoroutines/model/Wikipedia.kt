@@ -16,13 +16,13 @@ object Wikipedia {
 
     private val httpCallFactory: Call.Factory = OkHttpClient()
 
-    suspend fun getRandomArticle(): Article = withContext(Dispatchers.Default) {
+    suspend fun getRandomArticle(): WikipediaArticle = withContext(Dispatchers.Default) {
         val request = Request.Builder()
             .url("https://en.wikipedia.org/api/rest_v1/page/random/summary")
             .header("Accept", "application/json")
             .build()
         val call = httpCallFactory.newCall(request)
-        suspendCancellableCoroutine<Article> { continuation ->
+        suspendCancellableCoroutine<WikipediaArticle> { continuation ->
             call.enqueue(object: Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     continuation.resumeWithException(e)
@@ -31,7 +31,7 @@ object Wikipedia {
                 override fun onResponse(call: Call, response: Response) {
                     val article = try {
                         with(JSONObject(response.body()!!.string())) {
-                            Article(
+                            WikipediaArticle(
                                 getString("title").apply { check(isNotEmpty()) { "Empty title" } },
                                 getString("description"),
                                 getString("extract"),
@@ -48,9 +48,9 @@ object Wikipedia {
         }
     }
 
-    suspend fun getThumbnail(article: Article): Bitmap = withContext(Dispatchers.Default) {
+    suspend fun getImage(article: WikipediaArticle): Bitmap = withContext(Dispatchers.Default) {
         val request = Request.Builder()
-            .url(article.thumbnailUrl)
+            .url(article.imageUrl)
             .build()
         val call = httpCallFactory.newCall(request)
         suspendCancellableCoroutine<Bitmap> { continuation ->
@@ -72,6 +72,5 @@ object Wikipedia {
                 }
             })
         }
-
     }
 }

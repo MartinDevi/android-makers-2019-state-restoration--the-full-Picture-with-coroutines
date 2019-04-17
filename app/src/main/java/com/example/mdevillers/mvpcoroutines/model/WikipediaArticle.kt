@@ -3,11 +3,11 @@ package com.example.mdevillers.mvpcoroutines.model
 import android.os.Parcel
 import android.os.Parcelable
 
-class Article(
+class WikipediaArticle(
     val title: String,
     val description: String,
     val extract: String,
-    val thumbnailUrl: String
+    val imageUrl: String
 ): Parcelable {
 
     constructor(parcel: Parcel) : this(
@@ -21,15 +21,15 @@ class Article(
         parcel.writeString(title)
         parcel.writeString(description)
         parcel.writeString(extract)
-        parcel.writeString(thumbnailUrl)
+        parcel.writeString(imageUrl)
     }
 
     override fun describeContents(): Int = 0
 
     companion object CREATOR :
-        Parcelable.Creator<Article> {
-        override fun createFromParcel(parcel: Parcel): Article =
-            Article(parcel)
-        override fun newArray(size: Int): Array<Article?> = arrayOfNulls(size)
+        Parcelable.Creator<WikipediaArticle> {
+        override fun createFromParcel(parcel: Parcel): WikipediaArticle =
+            WikipediaArticle(parcel)
+        override fun newArray(size: Int): Array<WikipediaArticle?> = arrayOfNulls(size)
     }
 }
