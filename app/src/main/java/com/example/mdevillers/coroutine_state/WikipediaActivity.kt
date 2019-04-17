@@ -64,6 +64,15 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         }
         view.state = WikipediaView.State.ArticleDownloaded(article)
         this.article = article
+
+        view.state = WikipediaView.State.ArticleImageProgress(article)
+        val image = try {
+            Wikipedia.getImage(article)
+        } catch (e: Exception) {
+            view.state = WikipediaView.State.ArticleImageError(article, e)
+            return
+        }
+        view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
     }
 
     private fun clearArticle(articleDownloadViewModel: ArticleDownloadViewModel) {
