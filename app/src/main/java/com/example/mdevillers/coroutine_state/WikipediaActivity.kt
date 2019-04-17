@@ -17,8 +17,8 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         val view = WikipediaView(this)
 
         view.onClickDownloadRandomPage {
-            view.state = WikipediaView.State.ArticleProgress
             launch {
+                view.state = WikipediaView.State.ArticleProgress
                 val article = try {
                     Wikipedia.getRandomArticle()
                 } catch (e: Exception) {
