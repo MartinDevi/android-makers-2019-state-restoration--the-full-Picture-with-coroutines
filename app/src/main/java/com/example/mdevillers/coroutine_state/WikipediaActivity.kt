@@ -5,10 +5,10 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.mdevillers.coroutine_state.model.Wikipedia
 import com.example.mdevillers.coroutine_state.view.WikipediaView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import java.lang.Exception
+import kotlinx.coroutines.channels.actor
 
 class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
@@ -17,17 +17,20 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         setContentView(R.layout.activity_main)
         val view = WikipediaView(this)
 
-        view.onClickDownloadRandomPage {
-            launch {
+        val clickDownloadPageActor = actor<Unit>(start = CoroutineStart.UNDISPATCHED) {
+            for (command in this) {
                 view.state = WikipediaView.State.ArticleProgress
                 val article = try {
                     Wikipedia.getRandomArticle()
                 } catch (e: Exception) {
                     view.state = WikipediaView.State.ArticleError(e)
-                    return@launch
+                    continue
                 }
                 view.state = WikipediaView.State.ArticleDownloaded(article)
             }
+        }
+        view.onClickDownloadRandomPage {
+            clickDownloadPageActor.offer(Unit)
         }
     }
 
