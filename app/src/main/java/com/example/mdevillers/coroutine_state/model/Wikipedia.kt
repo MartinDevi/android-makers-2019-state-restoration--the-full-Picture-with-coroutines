@@ -3,6 +3,7 @@ package com.example.mdevillers.coroutine_state.model
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -17,6 +18,7 @@ object Wikipedia {
     private val httpCallFactory: Call.Factory = OkHttpClient()
 
     suspend fun getRandomArticle(): WikipediaArticle = withContext(Dispatchers.Default) {
+        delay(5000)
         val request = Request.Builder()
             .url("https://en.wikipedia.org/api/rest_v1/page/random/summary")
             .header("Accept", "application/json")
@@ -49,6 +51,7 @@ object Wikipedia {
     }
 
     suspend fun getImage(article: WikipediaArticle): Bitmap = withContext(Dispatchers.Default) {
+        delay(10000)
         val request = Request.Builder()
             .url(article.imageUrl)
             .build()
