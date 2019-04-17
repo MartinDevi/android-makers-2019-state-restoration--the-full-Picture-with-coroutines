@@ -8,14 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlin.coroutines.CoroutineContext
 
-class WikipediaActivity(
-    private val scope: CoroutineScope = MainScope()
-) : AppCompatActivity(), CoroutineScope by scope {
-
-    override val coroutineContext: CoroutineContext
-        get() = scope.coroutineContext
+class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,7 +32,7 @@ class WikipediaActivity(
 
     override fun onDestroy() {
         super.onDestroy()
-        scope.cancel()
+        cancel()
     }
 }
 
