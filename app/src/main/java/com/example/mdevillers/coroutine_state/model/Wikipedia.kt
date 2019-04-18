@@ -47,6 +47,9 @@ object Wikipedia {
                     continuation.resume(article)
                 }
             })
+            continuation.invokeOnCancellation {
+                call.cancel()
+            }
         }
     }
 
@@ -74,6 +77,9 @@ object Wikipedia {
                     continuation.resume(bitmap)
                 }
             })
+            continuation.invokeOnCancellation {
+                call.cancel()
+            }
         }
     }
 }
