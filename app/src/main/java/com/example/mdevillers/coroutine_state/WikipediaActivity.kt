@@ -138,7 +138,7 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             get() = _deferredImage
 
         fun getRandomArticleAsync(): Deferred<WikipediaArticle> =
-            async { Wikipedia.getRandomArticle() }.also { _deferred = it }
+            async { Wikipedia.getRandomArticle() }.also { _deferred = it; _deferredImage = null }
 
         fun getImageAsync(article: WikipediaArticle): Deferred<Bitmap> =
             async { Wikipedia.getImage(article) }.also { _deferredImage = it }
