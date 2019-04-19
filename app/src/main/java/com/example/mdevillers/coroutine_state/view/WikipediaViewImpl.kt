@@ -23,7 +23,7 @@ class WikipediaViewImpl(private val view: View): WikipediaView {
             is ArticleProgress -> showProgress()
             is ArticleDownloaded -> showArticle(value.article)
             is ArticleError -> showError(value.error.toString())
-            is ArticleImageProgress -> showImageProgress()
+            is ArticleImageProgress -> showImageProgress(value.article)
             is ArticleImageDownloaded -> showImage(value.image)
             is ArticleImageError -> showImageError(value.error.toString())
         }.exhaustive
@@ -106,7 +106,8 @@ class WikipediaViewImpl(private val view: View): WikipediaView {
         imageError.visibility = View.INVISIBLE
     }
 
-    fun showImageProgress() {
+    fun showImageProgress(article: WikipediaArticle) {
+        showArticle(article)
         imageProgress.visibility = View.VISIBLE
         image.visibility = View.INVISIBLE
         imageError.visibility = View.INVISIBLE
