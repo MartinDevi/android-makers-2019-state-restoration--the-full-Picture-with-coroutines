@@ -18,7 +18,7 @@ object Wikipedia {
     private val httpCallFactory: Call.Factory = OkHttpClient()
 
     suspend fun getRandomArticle(): WikipediaArticle = withContext(Dispatchers.Default) {
-        delay(5000)
+        delay(3000)
         val request = Request.Builder()
             .url("https://en.wikipedia.org/api/rest_v1/page/random/summary")
             .header("Accept", "application/json")
@@ -55,7 +55,7 @@ object Wikipedia {
     }
 
     suspend fun getImage(article: WikipediaArticle): Bitmap = withContext(Dispatchers.Default) {
-        delay(10000)
+        delay(3000)
         val request = Request.Builder()
             .url(article.imageUrl)
             .build()
