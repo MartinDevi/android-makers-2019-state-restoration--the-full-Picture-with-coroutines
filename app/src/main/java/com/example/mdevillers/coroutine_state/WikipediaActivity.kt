@@ -1,6 +1,7 @@
 package com.example.mdevillers.coroutine_state
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
@@ -10,10 +11,12 @@ import com.example.mdevillers.coroutine_state.model.WikipediaArticle
 import com.example.mdevillers.coroutine_state.view.WikipediaView
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.actor
+import java.io.File
 
 class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private var article: WikipediaArticle? = null
+    private var image: Bitmap? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,8 +25,14 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
         val articleDownloadViewModel = ViewModelProviders.of(this).get(ArticleDownloadViewModel::class.java)
         // Note: can use `SavedStateHandle` inside `ViewModel` once androidx.lifecycle:lifecycle-viewmodel-savedstate:1.0.0 becomes stable
-        article = savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.also {
-            view.state = WikipediaView.State.ArticleDownloaded(it)
+        article = savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.also { article ->
+            view.state = WikipediaView.State.ArticleDownloaded(article)
+            val articleImageFile = getArticleImageFile(article)
+            if (articleImageFile.exists()) {
+                image = BitmapFactory.decodeFile(articleImageFile.canonicalPath).also { image ->
+                    view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
+                }
+            }
         }
 
         val actor = actor<ActorCommand>(start = CoroutineStart.UNDISPATCHED) {
@@ -83,17 +92,30 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             return
         }
         view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
+        this.image = image
     }
 
     private fun clearArticle(articleDownloadViewModel: ArticleDownloadViewModel) {
         article = null
+        image = null
         articleDownloadViewModel.clear()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putParcelable(STATE_ARTICLE, article)
+        article?.let { article ->
+            outState.putParcelable(STATE_ARTICLE, article)
+            image?.let { image ->
+                check(cacheDir.exists() || cacheDir.mkdirs())
+                getArticleImageFile(article).outputStream().use {
+                    image.compress(Bitmap.CompressFormat.PNG, 0, it)
+                }
+            }
+        }
     }
+
+    private fun getArticleImageFile(article: WikipediaArticle) =
+        File(cacheDir, "${article.id}.png")
 
     override fun onDestroy() {
         super.onDestroy()

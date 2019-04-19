@@ -4,6 +4,7 @@ import android.os.Parcel
 import android.os.Parcelable
 
 class WikipediaArticle(
+    val id: Long,
     val title: String,
     val description: String,
     val extract: String,
@@ -11,6 +12,7 @@ class WikipediaArticle(
 ): Parcelable {
 
     constructor(parcel: Parcel) : this(
+        parcel.readLong(),
         parcel.readString()!!,
         parcel.readString()!!,
         parcel.readString()!!,
@@ -18,6 +20,7 @@ class WikipediaArticle(
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeLong(id)
         parcel.writeString(title)
         parcel.writeString(description)
         parcel.writeString(extract)

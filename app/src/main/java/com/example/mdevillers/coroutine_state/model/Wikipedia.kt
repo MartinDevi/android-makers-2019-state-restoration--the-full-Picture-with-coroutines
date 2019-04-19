@@ -34,6 +34,7 @@ object Wikipedia {
                     val article = try {
                         with(JSONObject(response.body()!!.string())) {
                             WikipediaArticle(
+                                getLong("pageid"),
                                 getString("title").apply { check(isNotEmpty()) { "Empty title" } },
                                 getString("description"),
                                 getString("extract"),
