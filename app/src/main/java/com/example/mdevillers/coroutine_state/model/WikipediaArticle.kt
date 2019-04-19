@@ -3,7 +3,7 @@ package com.example.mdevillers.coroutine_state.model
 import android.os.Parcel
 import android.os.Parcelable
 
-class WikipediaArticle(
+data class WikipediaArticle(
     val id: Long,
     val title: String,
     val description: String,
