@@ -1,5 +1,6 @@
 package com.example.mdevillers.coroutine_state
 
+import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
@@ -7,7 +8,6 @@ import androidx.lifecycle.ViewModelProviders
 import com.example.mdevillers.coroutine_state.model.Wikipedia
 import com.example.mdevillers.coroutine_state.model.WikipediaArticle
 import com.example.mdevillers.coroutine_state.view.WikipediaView
-import com.example.mdevillers.coroutine_state.view.exhaustive
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.actor
 
@@ -28,19 +28,19 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
         val actor = actor<ActorCommand>(start = CoroutineStart.UNDISPATCHED) {
             articleDownloadViewModel.deferred?.let {
-                bindDeferredArticle(view, it)
+                bindDeferredArticle(view, it, articleDownloadViewModel)
             }
             for (command in this) {
                 when (command) {
                     ActorCommand.DOWNLOAD -> {
                         val deferred = articleDownloadViewModel.getRandomArticleAsync()
-                        bindDeferredArticle(view, deferred)
+                        bindDeferredArticle(view, deferred, articleDownloadViewModel)
                     }
                     ActorCommand.CLEAR -> {
                         clearArticle(articleDownloadViewModel)
                         view.state = WikipediaView.State.Empty
                     }
-                }.exhaustive
+                }
             }
         }
         view.onClickDownloadRandomPage {
@@ -53,7 +53,8 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private suspend fun bindDeferredArticle(
         view: WikipediaView,
-        deferred: Deferred<WikipediaArticle>
+        deferred: Deferred<WikipediaArticle>,
+        articleDownloadViewModel: ArticleDownloadViewModel
     ) {
         view.state = WikipediaView.State.ArticleProgress
         val article = try {
@@ -65,9 +66,18 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         view.state = WikipediaView.State.ArticleDownloaded(article)
         this.article = article
 
+        val deferredImage = articleDownloadViewModel.deferredImage ?: articleDownloadViewModel.getImageAsync(article)
+        bindDeferredArticleImage(view, article, deferredImage)
+    }
+
+    private suspend fun bindDeferredArticleImage(
+        view: WikipediaView,
+        article: WikipediaArticle,
+        deferred: Deferred<Bitmap>
+    ) {
         view.state = WikipediaView.State.ArticleImageProgress(article)
         val image = try {
-            Wikipedia.getImage(article)
+            deferred.await()
         } catch (e: Exception) {
             view.state = WikipediaView.State.ArticleImageError(article, e)
             return
@@ -96,18 +106,26 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     }
 
     // Note: can use `viewModelScope` extension property once androidx.lifecycle:lifecycle-viewmodel-ktx:2.1.0 becomes stable
-    class ArticleDownloadViewModel: ViewModel(), CoroutineScope by MainScope() {
+    class ArticleDownloadViewModel : ViewModel(), CoroutineScope by MainScope() {
 
         private var _deferred: Deferred<WikipediaArticle>? = null
         val deferred: Deferred<WikipediaArticle>?
             get() = _deferred
+        private var _deferredImage: Deferred<Bitmap>? = null
+        val deferredImage: Deferred<Bitmap>?
+            get() = _deferredImage
 
         fun getRandomArticleAsync(): Deferred<WikipediaArticle> =
             async { Wikipedia.getRandomArticle() }.also { _deferred = it }
 
+        fun getImageAsync(article: WikipediaArticle): Deferred<Bitmap> =
+            async { Wikipedia.getImage(article) }.also { _deferredImage = it }
+
         fun clear() {
             _deferred?.cancel()
             _deferred = null
+            _deferredImage?.cancel()
+            _deferredImage = null
         }
 
         override fun onCleared() {
