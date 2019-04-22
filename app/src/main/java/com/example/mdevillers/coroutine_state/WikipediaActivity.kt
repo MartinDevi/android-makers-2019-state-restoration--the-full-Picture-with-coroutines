@@ -1,7 +1,6 @@
 package com.example.mdevillers.coroutine_state
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
@@ -11,143 +10,104 @@ import com.example.mdevillers.coroutine_state.model.WikipediaArticle
 import com.example.mdevillers.coroutine_state.view.WikipediaView
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.actor
-import java.io.File
+import java.lang.Exception
 
 class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private var article: WikipediaArticle? = null
-    private var image: Bitmap? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val view = WikipediaView(this)
 
-        val articleDownloadViewModel = ViewModelProviders.of(this).get(ArticleDownloadViewModel::class.java)
-        // Note: can use `SavedStateHandle` inside `ViewModel` once androidx.lifecycle:lifecycle-viewmodel-savedstate:1.0.0 becomes stable
-        article = savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.also { article ->
-            view.state = WikipediaView.State.ArticleDownloaded(article)
-            val articleImageFile = getArticleImageFile(article)
-            if (articleImageFile.exists()) {
-                image = BitmapFactory.decodeFile(articleImageFile.canonicalPath).also { image ->
-                    view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
-                }
-            }
+        article = savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.also {
+            view.state = WikipediaView.State.ArticleDownloaded(it)
         }
 
-        val actor = actor<ActorCommand>(start = CoroutineStart.UNDISPATCHED) {
-            articleDownloadViewModel.deferred?.let {
-                bindDeferredArticle(view, it, articleDownloadViewModel)
+        val viewModel = ViewModelProviders.of(this).get(WikipediaViewModel::class.java)
+        val actor = actor<Command>(start = CoroutineStart.UNDISPATCHED) {
+            viewModel.deferredArticle?.let {
+                bindDeferredArticle(view, it.first, it.second)
             }
             for (command in this) {
                 when (command) {
-                    ActorCommand.DOWNLOAD -> {
-                        val deferred = articleDownloadViewModel.getRandomArticleAsync()
-                        bindDeferredArticle(view, deferred, articleDownloadViewModel)
+                    Command.DOWNLOAD -> {
+                        val (deferredArticle, deferredImage) = viewModel.getRandomArticleImageAsync()
+                        bindDeferredArticle(view, deferredArticle, deferredImage)
                     }
-                    ActorCommand.CLEAR -> {
-                        clearArticle(articleDownloadViewModel)
+                    Command.CLEAR -> {
+                        viewModel.clear()
                         view.state = WikipediaView.State.Empty
                     }
                 }
             }
         }
         view.onClickDownloadRandomPage {
-            actor.offer(ActorCommand.DOWNLOAD)
+            actor.offer(Command.DOWNLOAD)
         }
         view.onClickClear {
-            actor.offer(ActorCommand.CLEAR)
+            actor.offer(Command.CLEAR)
         }
-    }
-
-    private suspend fun bindDeferredArticle(
-        view: WikipediaView,
-        deferred: Deferred<WikipediaArticle>,
-        articleDownloadViewModel: ArticleDownloadViewModel
-    ) {
-        view.state = WikipediaView.State.ArticleProgress
-        val article = try {
-            deferred.await()
-        } catch (e: Exception) {
-            view.state = WikipediaView.State.ArticleError(e)
-            return
-        }
-        view.state = WikipediaView.State.ArticleDownloaded(article)
-        this.article = article
-
-        val deferredImage = articleDownloadViewModel.deferredImage ?: articleDownloadViewModel.getImageAsync(article)
-        bindDeferredArticleImage(view, article, deferredImage)
-    }
-
-    private suspend fun bindDeferredArticleImage(
-        view: WikipediaView,
-        article: WikipediaArticle,
-        deferred: Deferred<Bitmap>
-    ) {
-        view.state = WikipediaView.State.ArticleImageProgress(article)
-        val image = try {
-            deferred.await()
-        } catch (e: Exception) {
-            view.state = WikipediaView.State.ArticleImageError(article, e)
-            return
-        }
-        view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
-        this.image = image
-    }
-
-    private fun clearArticle(articleDownloadViewModel: ArticleDownloadViewModel) {
-        article = null
-        image = null
-        articleDownloadViewModel.clear()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        article?.let { article ->
-            outState.putParcelable(STATE_ARTICLE, article)
-            image?.let { image ->
-                check(cacheDir.exists() || cacheDir.mkdirs())
-                getArticleImageFile(article).outputStream().use {
-                    image.compress(Bitmap.CompressFormat.PNG, 0, it)
-                }
-            }
-        }
+        outState.putParcelable(STATE_ARTICLE, article)
     }
-
-    private fun getArticleImageFile(article: WikipediaArticle) =
-        File(cacheDir, "${article.id}.png")
 
     override fun onDestroy() {
         super.onDestroy()
         cancel()
     }
 
-    private enum class ActorCommand {
+    private suspend fun bindDeferredArticle(
+        view: WikipediaView,
+        deferredArticle: Deferred<WikipediaArticle>,
+        deferredImage: Deferred<Bitmap>
+    ) {
+        view.state = WikipediaView.State.ArticleProgress
+        val article = try {
+            deferredArticle.await()
+        } catch (e: Exception) {
+            view.state = WikipediaView.State.ArticleError(e)
+            return
+        }
+        this.article = article
+        view.state = WikipediaView.State.ArticleImageProgress(article)
+        val image = try {
+            deferredImage.await()
+        } catch (e: Exception) {
+            view.state = WikipediaView.State.ArticleImageError(article, e)
+            return
+        }
+        view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
+    }
+
+    enum class Command {
         DOWNLOAD,
         CLEAR
     }
 
-    // Note: can use `viewModelScope` extension property once androidx.lifecycle:lifecycle-viewmodel-ktx:2.1.0 becomes stable
-    class ArticleDownloadViewModel : ViewModel(), CoroutineScope by MainScope() {
+    class WikipediaViewModel : ViewModel(), CoroutineScope by MainScope() {
 
-        private var _deferred: Deferred<WikipediaArticle>? = null
-        val deferred: Deferred<WikipediaArticle>?
-            get() = _deferred
-        private var _deferredImage: Deferred<Bitmap>? = null
-        val deferredImage: Deferred<Bitmap>?
-            get() = _deferredImage
+        private var _deferredArticleImage: Pair<Deferred<WikipediaArticle>, Deferred<Bitmap>>? = null
+        val deferredArticle: Pair<Deferred<WikipediaArticle>, Deferred<Bitmap>>?
+            get() = _deferredArticleImage
 
-        fun getRandomArticleAsync(): Deferred<WikipediaArticle> =
-            async { Wikipedia.getRandomArticle() }.also { _deferred = it; _deferredImage = null }
-
-        fun getImageAsync(article: WikipediaArticle): Deferred<Bitmap> =
-            async { Wikipedia.getImage(article) }.also { _deferredImage = it }
+        fun getRandomArticleImageAsync(): Pair<Deferred<WikipediaArticle>, Deferred<Bitmap>> =
+            async { Wikipedia.getRandomArticle() }.let {
+                it to async {
+                    Wikipedia.getImage(it.await())
+                }
+            }.also {
+                _deferredArticleImage = it
+            }
 
         fun clear() {
-            _deferred?.cancel()
-            _deferred = null
-            _deferredImage?.cancel()
-            _deferredImage = null
+            _deferredArticleImage?.first?.cancel()
+            _deferredArticleImage?.second?.cancel()
+            _deferredArticleImage = null
         }
 
         override fun onCleared() {
@@ -157,7 +117,7 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     }
 
     companion object {
-        private const val STATE_ARTICLE = "Article"
+        const val STATE_ARTICLE = "Article"
     }
 }
 
