@@ -1,6 +1,5 @@
 package com.example.mdevillers.coroutine_state
 
-import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
@@ -10,7 +9,6 @@ import com.example.mdevillers.coroutine_state.model.WikipediaArticle
 import com.example.mdevillers.coroutine_state.view.WikipediaView
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.actor
-import java.lang.Exception
 
 class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
@@ -21,30 +19,31 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         setContentView(R.layout.activity_main)
         val view = WikipediaView(this)
 
-        article = savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.also {
-            view.state = WikipediaView.State.ArticleDownloaded(it)
-        }
-
         val viewModel = ViewModelProviders.of(this).get(WikipediaViewModel::class.java)
-        val actor = actor<Command>(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.deferredArticle?.let {
-                bindDeferredArticle(view, it.first, it.second)
+        val actor = actor<Command> {
+            savedInstanceState?.getParcelable<WikipediaArticle>(STATE_ARTICLE)?.let { article ->
+                bindDeferredArticle(view, CompletableDeferred(article))
             }
-            for (command in this) {
+            viewModel.deferredArticle?.let {
+                bindDeferredArticle(view, it)
+            }
+            loop@ for (command in this) {
                 when (command) {
-                    Command.DOWNLOAD -> {
-                        val (deferredArticle, deferredImage) = viewModel.getRandomArticleImageAsync()
-                        bindDeferredArticle(view, deferredArticle, deferredImage)
+                    Command.DONWLOAD -> {
+                        val articleDeferred = viewModel.getArticleDeferred()
+                        article = null
+                        bindDeferredArticle(view, articleDeferred)
                     }
                     Command.CLEAR -> {
-                        viewModel.clear()
                         view.state = WikipediaView.State.Empty
+                        article = null
+                        viewModel.clear()
                     }
                 }
             }
         }
         view.onClickDownloadRandomPage {
-            actor.offer(Command.DOWNLOAD)
+            actor.offer(Command.DONWLOAD)
         }
         view.onClickClear {
             actor.offer(Command.CLEAR)
@@ -56,27 +55,22 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         outState.putParcelable(STATE_ARTICLE, article)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        cancel()
-    }
-
     private suspend fun bindDeferredArticle(
         view: WikipediaView,
-        deferredArticle: Deferred<WikipediaArticle>,
-        deferredImage: Deferred<Bitmap>
+        articleDeferred: Deferred<WikipediaArticle>
     ) {
         view.state = WikipediaView.State.ArticleProgress
         val article = try {
-            deferredArticle.await()
+            articleDeferred.await()
         } catch (e: Exception) {
             view.state = WikipediaView.State.ArticleError(e)
             return
         }
+        view.state = WikipediaView.State.ArticleDownloaded(article)
         this.article = article
-        view.state = WikipediaView.State.ArticleImageProgress(article)
+
         val image = try {
-            deferredImage.await()
+            Wikipedia.getImage(article)
         } catch (e: Exception) {
             view.state = WikipediaView.State.ArticleImageError(article, e)
             return
@@ -84,30 +78,28 @@ class WikipediaActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         view.state = WikipediaView.State.ArticleImageDownloaded(article, image)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        cancel()
+    }
+
     enum class Command {
-        DOWNLOAD,
+        DONWLOAD,
         CLEAR
     }
 
     class WikipediaViewModel : ViewModel(), CoroutineScope by MainScope() {
 
-        private var _deferredArticleImage: Pair<Deferred<WikipediaArticle>, Deferred<Bitmap>>? = null
-        val deferredArticle: Pair<Deferred<WikipediaArticle>, Deferred<Bitmap>>?
-            get() = _deferredArticleImage
+        private var _deferredArticle: Deferred<WikipediaArticle>? = null
+        val deferredArticle: Deferred<WikipediaArticle>?
+            get() = _deferredArticle
 
-        fun getRandomArticleImageAsync(): Pair<Deferred<WikipediaArticle>, Deferred<Bitmap>> =
-            async { Wikipedia.getRandomArticle() }.let {
-                it to async {
-                    Wikipedia.getImage(it.await())
-                }
-            }.also {
-                _deferredArticleImage = it
-            }
+        fun getArticleDeferred() =
+            async { Wikipedia.getRandomArticle() }.also { _deferredArticle = it }
 
         fun clear() {
-            _deferredArticleImage?.first?.cancel()
-            _deferredArticleImage?.second?.cancel()
-            _deferredArticleImage = null
+            _deferredArticle?.cancel()
+            _deferredArticle = null
         }
 
         override fun onCleared() {
