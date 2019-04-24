@@ -1,7 +1,7 @@
 package com.example.mdevillers.coroutine_state.view
 
-import android.graphics.Bitmap
 import com.example.mdevillers.coroutine_state.model.WikipediaArticle
+import com.example.mdevillers.coroutine_state.model.WikipediaImage
 
 interface WikipediaView {
 
@@ -16,7 +16,7 @@ interface WikipediaView {
         data class ArticleDownloaded(val article: WikipediaArticle) : State()
         data class ArticleError(val error: Throwable) : State()
         data class ArticleImageProgress(val article: WikipediaArticle) : State()
-        data class ArticleImageDownloaded(val article: WikipediaArticle, val image: Bitmap) : State()
+        data class ArticleImageDownloaded(val article: WikipediaArticle, val image: WikipediaImage) : State()
         data class ArticleImageError(val article: WikipediaArticle, val error: Throwable) : State()
     }
 }

@@ -1,6 +1,5 @@
 package com.example.mdevillers.coroutine_state.model
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -9,7 +8,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
-import java.lang.Exception
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -54,13 +52,13 @@ object Wikipedia {
         }
     }
 
-    suspend fun getImage(article: WikipediaArticle): Bitmap = withContext(Dispatchers.Default) {
+    suspend fun getImage(article: WikipediaArticle): WikipediaImage = withContext(Dispatchers.Default) {
         delay(3000)
         val request = Request.Builder()
             .url(article.imageUrl)
             .build()
         val call = httpCallFactory.newCall(request)
-        suspendCancellableCoroutine<Bitmap> { continuation ->
+        suspendCancellableCoroutine<WikipediaImage> { continuation ->
             call.enqueue(object: Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     continuation.resumeWithException(e)
@@ -75,7 +73,7 @@ object Wikipedia {
                         continuation.resumeWithException(e)
                         return
                     }
-                    continuation.resume(bitmap)
+                    continuation.resume(WikipediaImage(bitmap))
                 }
             })
             continuation.invokeOnCancellation {

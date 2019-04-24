@@ -29,10 +29,8 @@ data class WikipediaArticle(
 
     override fun describeContents(): Int = 0
 
-    companion object CREATOR :
-        Parcelable.Creator<WikipediaArticle> {
-        override fun createFromParcel(parcel: Parcel): WikipediaArticle =
-            WikipediaArticle(parcel)
+    companion object CREATOR : Parcelable.Creator<WikipediaArticle> {
+        override fun createFromParcel(parcel: Parcel): WikipediaArticle = WikipediaArticle(parcel)
         override fun newArray(size: Int): Array<WikipediaArticle?> = arrayOfNulls(size)
     }
 }

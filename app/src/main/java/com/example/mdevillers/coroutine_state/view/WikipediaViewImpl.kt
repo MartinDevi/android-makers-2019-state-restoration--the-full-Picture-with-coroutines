@@ -24,7 +24,7 @@ class WikipediaViewImpl(private val view: View): WikipediaView {
             is ArticleDownloaded -> showArticle(value.article)
             is ArticleError -> showError(value.error.toString())
             is ArticleImageProgress -> showImageProgress(value.article)
-            is ArticleImageDownloaded -> showImage(value.image)
+            is ArticleImageDownloaded -> showImage(value.image.bitmap)
             is ArticleImageError -> showImageError(value.error.toString())
         }.exhaustive
     }
